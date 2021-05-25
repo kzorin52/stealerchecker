@@ -37,6 +37,9 @@
     <Reference Include="Colorful.Console, Version=1.2.15.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Colorful.Console.1.2.15\lib\net461\Colorful.Console.dll</HintPath>
     </Reference>
+    <Reference Include="CommandLine">
+      <HintPath>.\CommandLine.dll</HintPath>
+    </Reference>
     <Reference Include="FluentFTP, Version=34.0.0.0, Culture=neutral, PublicKeyToken=f4af092b1d8df44f, processorArchitecture=MSIL">
       <HintPath>packages\FluentFTP.34.0.0\lib\net45\FluentFTP.dll</HintPath>
     </Reference>

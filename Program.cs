@@ -1,4 +1,5 @@
-﻿using FluentFTP;
+﻿using CommandLine;
+using FluentFTP;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,16 +16,37 @@ namespace stealerchecker
 {
     static class Program
     {
-        const string caption = "StealerChecker v5.2 by Temnij";
-        const string path = @"E:\stealed\PASS1234";
+        public class Options
+        {
+            [Option('p', "path", Required = true, HelpText = "Path to folder with logs")]
+            public string Path { get; set; }
+
+            [Option('v', "verbose", Required = false, HelpText = "Passwords view verbose mode")]
+            public bool Verbose { get; set; }
+        }
+
+        #region FIELDS
+
+        const string caption = "StealerChecker v6 by Temnij";
+        static string path;
         static List<string> files = new();
         static List<string> directories = new();
-        static bool Verbose = false;
+        static bool Verbose;
 
-        static void Main() // 11 tg
+        #endregion
+
+        static void Main(string[] args)
         {
             SetStatus();
+            #region ARGUMENT PARSING
 
+            Parser.Default.ParseArguments<Options>(args)
+                   .WithParsed(o => { path = o.Path; Verbose = o.Verbose; });
+
+            if (string.IsNullOrEmpty(path))
+                Environment.Exit(-1);
+
+            #endregion
             #region LOADING
 
             Console.WriteLine("Please wait, loading...", Color.LightCyan);
@@ -42,8 +64,8 @@ namespace stealerchecker
         #endregion
 
         again:
-
             Console.WriteLine();
+            Console.WriteAscii("StealerChecker", Color.Pink);
             Console.WriteLine(caption, Color.Pink);
             Console.WriteLine();
             Console.WriteLine("1) Get CCs", Color.LightCyan);
@@ -52,6 +74,7 @@ namespace stealerchecker
             Console.WriteLine("4) Search passwords", Color.LightCyan);
             Console.WriteLine("5) Get Telegrams", Color.LightCyan);
             Console.WriteLine("6) Sort Logs by Date", Color.LightCyan);
+            Console.WriteLine("88) Exit", Color.LightPink);
             Console.WriteLine($"99) VERBOSE: {Verbose}", Color.LightCyan);
 
             switch (int.Parse(Console.ReadLine()))
@@ -73,6 +96,7 @@ namespace stealerchecker
                     Verbose = !Verbose;
                     Console.Clear();
                     break;
+                case 88: Environment.Exit(0); break;
             }
             goto again;
         }
