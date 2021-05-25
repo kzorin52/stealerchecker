@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading;
 using TemnijExt;
 using Console = Colorful.Console;
 
@@ -67,6 +68,7 @@ namespace stealerchecker
             Console.WriteLine();
             Console.WriteAscii("StealerChecker", Color.Pink);
             Console.WriteLine(caption, Color.Pink);
+            Console.WriteLine($"Loaded: {files.Count} logs", Color.Gray);
             Console.WriteLine();
             Console.WriteLine("1) Get CCs", Color.LightCyan);
             Console.WriteLine("2) Get FTPs", Color.LightCyan);
@@ -282,6 +284,12 @@ namespace stealerchecker
 
         public static void GetDiscord()
         {
+            if (!File.Exists("DiscordTokens.txt"))
+            {
+                File.Create("DiscordTokens.txt");
+                Thread.Sleep(100);
+            }
+
             foreach (var file in files)
             {
                 SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
@@ -516,12 +524,18 @@ namespace stealerchecker
                         CopyTelegram(file);
                 }
             }
+            SetStatus();
 
         again:
             var dirs = new List<string>();
             foreach (var dir in Directory.GetDirectories("Telegram"))
                 dirs.Add(new DirectoryInfo(dir).Name);
-            foreach (var dir in dirs)
+
+            var ordered = dirs
+            .OrderBy(x => int.Parse(x))
+            .ToList();
+
+            foreach (var dir in ordered)
                 Console.WriteLine(dir, Color.LightGreen);
 
             Console.WriteLine("Select Telegram:", Color.Green);
@@ -554,7 +568,7 @@ namespace stealerchecker
 
             CopyFilesRecursively(tgDir, Path.Combine(Directory.GetCurrentDirectory(), "Telegram", counter.ToString()));
             counter++;
-            Console.Title = $"{counter} telegram dirs copied";
+            SetStatus($"{counter} telegram dirs copied");
         }
 
         private static void CopyFilesRecursively(string sourcePath, string targetPath)
