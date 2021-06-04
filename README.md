@@ -1,6 +1,24 @@
 # StealerChecker by Temnij
 Инструмент для работы с логами Echelon
+<br>
+Запуск:<br>
+```
+StealerChecker
+Copyright Temnij 2021
 
+  Required option 'p, path' is missing.
+
+  -p, --path          Required. Path to folder with logs
+
+  -v, --verbose       Passwords view verbose mode
+
+  -e, --everything    Use Everything service
+
+  --help              Display this help screen.
+
+  --version           Display version information.
+
+```
 ![Скриншот](Image%201105.jpg)
 
 # Базовые функции
