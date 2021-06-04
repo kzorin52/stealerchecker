@@ -34,7 +34,7 @@ namespace stealerchecker
 
         #region FIELDS
 
-        private const string caption = "StealerChecker v7.3 by Temnij";
+        private const string caption = "StealerChecker v7.7 by Temnij";
         private static string path;
         private static readonly List<string> files = new();
         private static readonly List<string> directories = new();
