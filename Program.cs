@@ -93,9 +93,7 @@ namespace stealerchecker
         {
             foreach (var dir in directories)
                 foreach (var file in Directory.GetFiles(dir))
-                    if (Path.GetFileName(file) == "InfoHERE.txt"
-                        || Path.GetFileName(file) == "InfoHERE.html"
-                        || Path.GetFileName(file) == "UserInformation.txt")
+                    if (Path.GetFileName(file) == "InfoHERE.txt")
                         files.Add(file);
         }
 
@@ -360,16 +358,14 @@ namespace stealerchecker
                             Console.Write($"[{newfile}]", Color.Green);
                             Console.WriteLine(" - Discord");
 
-                            Console.WriteLine($"{string.Join(Environment.NewLine, tokens.Distinct().Where(x => x.Length > 5))}", Color.LightGreen);
-                            tokensList.AddRange(tokens);
-                        }
-                    }
-                }
-                catch
-                {
+                    foreach (var token in tokens)
+                        if (!tokensGlobal.Contains(token))
+                        {
+                            Console.WriteLine($"\t{token}", Color.LightGreen);
 
-                }
-            }
+                            using var stream = new StreamWriter("DiscordTokens.txt", true);
+                            stream.WriteLine(token);
+                        }
 
             return tokensList;
         }
@@ -401,67 +397,133 @@ namespace stealerchecker
         }
         private static List<string> SearchByURLHerlper(string query)
         {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Url.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}"); // не ворк почему-то...
+            var pas = new List<string>();
+            var filecl = FileCl.Load(path);
+            var dir = filecl.Info.Directory.FullName;
+            var passwordsDir = Path.Combine(dir, "Browsers", "Passwords");
 
-            return strPasses.Distinct().ToList();
-        }
+            foreach (var file in Directory.GetFiles(passwordsDir))
+            {
+                var thisFile = FileCl.Load(file);
 
-        #endregion
-        #region USERNAME
+                if (thisFile.Info.Name == "ChromiumV2.txt")
+                {
+                    foreach (var pass in Regex.Split(thisFile.GetContent(), "============================="))
+                    {
+                        var log = Regex.Match(pass, @"Url: (.*)\s*Username: (.*)\s*Password: (.*)\s*Application: (.*)");
 
-        public static void SearchByUsername(string query)
-        {
-            SetStatus("Working... ");
+                        string
+                            Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                            Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                            Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
 
-            foreach (var password in SearchByUsernameHelper(query))
-                if (!Verbose)
-                    Console.WriteLine(password, Color.LightGreen);
+                        if (Url.Contains(query))
+                        {
+                            if (Username?.Length == 0 || Password?.Length == 0)
+                                continue;
 
-            SetStatus();
-        }
-        private static List<string> SearchByUsernameHelper(string query)
-        {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Login.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}");
+                            if (Verbose)
+                                pas.Add($"{Username}:{Password}\t{Url}");
+                            else
+                                pas.Add($"{Username}:{Password}");
+                        }
+                    }
+                }
+                if (thisFile.Info.Name == "Passwords_Google.txt")
+                {
+                    foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                    {
+                        var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Password: (.*)\s*Browser: (.*)");
 
-            return strPasses.Distinct().ToList();
-        }
+                        string
+                            Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                            Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                            Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
 
-        #endregion
-        #region PASSWORD
+                        if (Url.Contains(query))
+                        {
+                            if (Username?.Length == 0 || Password?.Length == 0)
+                                continue;
 
-        public static void SearchByPass(string query)
-        {
-            SetStatus("Working... ");
+                            if (Verbose)
+                                pas.Add($"{Username}:{Password}\t{Url}");
+                            else
+                                pas.Add($"{Username}:{Password}");
+                        }
+                    }
+                }
+                if (thisFile.Info.Name == "Passwords_Mozilla.txt")
+                {
+                    foreach (var pass in Regex.Split(thisFile.GetContent().Replace("\r", ""), "\n\n"))
+                    {
+                        var log = Regex.Match(pass, @"URL : (.*)\s*Login: (.*)\s*Password: (.*)");
 
-            foreach (var password in SearchByPassHelper(query))
-                if (!Verbose)
-                    Console.WriteLine(password, Color.LightGreen);
+                        string
+                            Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                            Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                            Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
 
-            SetStatus();
-        }
-        private static List<string> SearchByPassHelper(string query)
-        {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Pass.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}");
+                        if (Url.Contains(query))
+                        {
+                            if (Username?.Length == 0 || Password?.Length == 0)
+                                continue;
 
-            return strPasses.Distinct().ToList();
+                            if (Verbose)
+                                pas.Add($"{Username}:{Password}\t{Url}");
+                            else
+                                pas.Add($"{Username}:{Password}");
+                        }
+                    }
+                }
+                if (thisFile.Info.Name == "Passwords_Opera.txt")
+                {
+                    foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                    {
+                        var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Passwords: (.*)");
+
+                        string
+                            Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                            Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                            Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                        if (Url.Contains(query))
+                        {
+                            if (Username?.Length == 0 || Password?.Length == 0)
+                                continue;
+
+                            if (Verbose)
+                                pas.Add($"{Username}:{Password}\t{Url}");
+                            else
+                                pas.Add($"{Username}:{Password}");
+                        }
+                    }
+                }
+                if (thisFile.Info.Name == "Passwords_Unknown.txt")
+                {
+                    foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                    {
+                        var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                        string
+                            Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                            Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                            Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                        if (Url.Contains(query))
+                        {
+                            if (Username?.Length == 0 || Password?.Length == 0)
+                                continue;
+
+                            if (Verbose)
+                                pas.Add($"{Username}:{Password}\t{Url}");
+                            else
+                                pas.Add($"{Username}:{Password}");
+                        }
+                    }
+                }
+            }
+
+            return pas;
         }
 
         #endregion
@@ -661,9 +723,9 @@ namespace stealerchecker
         #endregion
         #region SORT BY CATEGORIES
 
-        private static int counter2 = 0;
-        private static int count2 = 0;
-        private static List<Password> glob;
+        static int counter2 = 0;
+        static int count2 = 0;
+        static List<Password> glob;
 
         public static void SortLogsbyCategories()
         {
@@ -684,84 +746,92 @@ namespace stealerchecker
                 var pas = new List<Password>();
                 var filecl = FileCl.Load(filePas);
                 var dir = filecl.Info.Directory.FullName;
+                var passwordsDir = Path.Combine(dir, "Browsers", "Passwords");
 
-                if (filecl.Info.Name == "InfoHERE.txt"
-                    || filecl.Info.Name == "InfoHERE.html")
+                foreach (var file in Directory.GetFiles(passwordsDir))
                 {
-                    var passwordsDir = Path.Combine(dir, "Browsers", "Passwords");
+                    var thisFile = FileCl.Load(file);
 
-                    try
+                    if (thisFile.Info.Name == "ChromiumV2.txt")
                     {
-                        foreach (var file in Directory.GetFiles(passwordsDir))
+                        foreach (var pass in Regex.Split(thisFile.GetContent(), "============================="))
                         {
-                            var thisFile = FileCl.Load(file);
+                            var log = Regex.Match(pass, @"Url: (.*)\s*Username: (.*)\s*Password: (.*)\s*Application: (.*)");
 
-                            try
-                            {
-                                if (thisFile.Info.Name == "ChromiumV2.txt")
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)\s*Application: (.*)");
+                            string
+                                Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                                Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                                Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
 
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                if (thisFile.Info.Name == "Passwords_Google.txt")
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)\s*Browser: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                if (thisFile.Info.Name == "Passwords_Mozilla.txt")
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"URL : (.*)\s*Login: (.*)\s*Password: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                         .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                         .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                if (thisFile.Info.Name == "Passwords_Opera.txt")
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Passwords: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                if (thisFile.Info.Name == "Passwords_Unknown.txt")
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                            }
-                            catch { }
+                            if (Username?.Length > 1 || Password?.Length > 1)
+                                pas.Add(new Password(Url, Username, Password));
                         }
                     }
-                    catch
+                    if (thisFile.Info.Name == "Passwords_Google.txt")
                     {
+                        foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                        {
+                            var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Password: (.*)\s*Browser: (.*)");
 
+                            string
+                                Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                                Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                                Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                            if (Username?.Length > 1 || Password?.Length > 1)
+                                pas.Add(new Password(Url, Username, Password));
+                        }
+                    }
+                    if (thisFile.Info.Name == "Passwords_Mozilla.txt")
+                    {
+                        foreach (var pass in Regex.Split(thisFile.GetContent().Replace("\r", ""), "\n\n"))
+                        {
+                            var log = Regex.Match(pass, @"URL : (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                            string
+                                Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                                Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                                Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                            if (Username?.Length > 1 || Password?.Length > 1)
+                                pas.Add(new Password(Url, Username, Password));
+                        }
+                    }
+                    if (thisFile.Info.Name == "Passwords_Opera.txt")
+                    {
+                        foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                        {
+                            var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Passwords: (.*)");
+
+                            string
+                                Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                                Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                                Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                            if (Username?.Length > 1 || Password?.Length > 1)
+                                pas.Add(new Password(Url, Username, Password));
+                        }
+                    }
+                    if (thisFile.Info.Name == "Passwords_Unknown.txt")
+                    {
+                        foreach (var pass in Regex.Split(thisFile.GetContent(), "----------------------------------------"))
+                        {
+                            var log = Regex.Match(pass, @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                            string
+                                Url = log.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                                Username = log.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                                Password = log.Groups[3].Value.Replace("\r", "").Replace("\\r", "");
+
+                            if (Username?.Length > 1 || Password?.Length > 1)
+                                pas.Add(new Password(Url, Username, Password));
+                        }
                     }
                 }
-                else if (filecl.Info.Name == "UserInformation.txt")
-                {
-                    try
-                    {
-                        var thisFile = FileCl.Load("Passwords.txt");
-                        var log = Regex.Matches(thisFile.GetContent(), @"URL: (.*)\s*Username: (.*)\s*Password: (.*)");
 
-                        pas.AddRange(log.OfType<Match>()
-                                    .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                    }
-                    catch { }
+                    passwords.AddRange(pas);
                 }
-
-                passwords.AddRange(pas);
+                catch { }
             }
 
             return passwords.Distinct().ToList();
@@ -788,11 +858,12 @@ namespace stealerchecker
                 var filename = Path.Combine(categoryName, serviceName) + ".txt";
 
                 var login = pass.Login;
-                login = login.Replace("(", "")
-                    .Replace(")", "")
-                    .Replace(" ", "")
-                    .Replace("-", "")
-                    .Replace("+", "");
+                if(serviceName == "vk.com")
+                    login = login.Replace("(", "")
+                        .Replace(")", "")
+                        .Replace(" ", "")
+                        .Replace("-", "")
+                        .Replace("+", "");
 
                 File.AppendAllText(filename, $"{login}:{pass.Pass}");
                 File.WriteAllLines(filename, File.ReadAllLines(filename).Distinct());
@@ -1086,6 +1157,182 @@ namespace stealerchecker
             if (b == 0) return 0;
 
             return a / (b / 100M);
+        }
+
+        #endregion
+        #region EVERYTHING
+
+        public static async Task GetFilesAsync()
+        {
+            var client = new EverythingClient();
+            var result = await client.SearchAsync("InfoHERE.txt").ConfigureAwait(false);
+            foreach (var file in result.Items.OfType<FileResultItem>())
+                if (file.FullPath.StartsWith(path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
+                    files.Add(file.FullPath);
+
+            var resultHtml = await client.SearchAsync("InfoHERE.html").ConfigureAwait(false);
+            foreach (var file in resultHtml.Items.OfType<FileResultItem>())
+                if (file.FullPath.StartsWith(path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
+                    files.Add(file.FullPath);
+        }
+
+        #endregion
+        #region MENU
+
+        public static void PrintSearchMenu()
+        {
+            Console.Clear();
+            Console.WriteLine("Searhing", Color.Pink);
+            Console.WriteLine();
+            Console.WriteLine("1. Search by URL", Color.LightCyan);
+            Console.WriteLine("2. Search by Password", Color.LightCyan);
+            Console.WriteLine("3. Search by Username", Color.LightCyan);
+            Console.WriteLine();
+            Console.WriteLine("55. back <--", Color.Cyan);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Console.Clear();
+                PrintSearchMenu();
+            }
+
+            Console.WriteLine();
+            switch (selection)
+            {
+                case 1:
+                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
+                    SearchByURL(Console.ReadLine());
+                    break;
+                case 2:
+                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
+                    SearchByPass(Console.ReadLine());
+                    break;
+                case 3:
+                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
+                    SearchByUsername(Console.ReadLine());
+                    break;
+
+                case 55:
+                    Console.Clear();
+                    PrintMainMenu();
+                    break;
+                default: PrintSearchMenu(); break;
+            }
+        }
+        public static void PrintSortMenu()
+        {
+            Console.Clear();
+            Console.WriteLine("Sorting", Color.Pink);
+            Console.WriteLine();
+            Console.WriteLine("1. Sort by date", Color.LightCyan);
+            Console.WriteLine("2. Sort login:pass by categories", Color.LightCyan);
+            Console.WriteLine();
+            Console.WriteLine("55. back <--", Color.Cyan);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Console.Clear();
+                PrintSortMenu();
+            }
+
+            Console.WriteLine();
+            switch (selection)
+            {
+                case 1: SortLogs(); break;
+                case 2: SortLogsbyCategories(); break;
+
+                case 55:
+                    Console.Clear();
+                    PrintMainMenu();
+                    break;
+                default: PrintSortMenu(); break;
+            }
+        }
+        public static void PrintGetMenu()
+        {
+            Console.Clear();
+            Console.WriteLine("Getting", Color.Pink);
+            Console.WriteLine();
+            Console.WriteLine("1. Get CC cards", Color.LightCyan);
+            Console.WriteLine("2. Get&Check FTP servers", Color.LightCyan);
+            Console.WriteLine("3. Get Discord tokens", Color.LightCyan);
+            Console.WriteLine("3. Get Telegrams", Color.LightCyan);
+            Console.WriteLine();
+            Console.WriteLine("55. back <--", Color.Cyan);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Console.Clear();
+                PrintGetMenu();
+            }
+
+            Console.WriteLine();
+            switch (selection)
+            {
+                case 1: GetCC(); break;
+                case 2: GetFTP(); break;
+                case 3: GetDiscord(); break;
+                case 4: GetTelegram(); break;
+
+                case 55:
+                    Console.Clear();
+                    PrintMainMenu();
+                    break;                    
+                default: PrintGetMenu(); break;
+            }
+        }
+        public static void PrintMainMenu()
+        {
+            Console.WriteLine();
+            Console.WriteAscii("StealerChecker", Color.Pink);
+            Console.WriteLine(caption, Color.Pink);
+            Console.WriteLine($"Loaded: {files.Count} logs", Color.Gray);
+            Console.WriteLine();
+            Console.WriteLine("1. Get", Color.LightCyan);
+            Console.WriteLine("2. Search", Color.LightCyan);
+            Console.WriteLine("3. Sort Logs", Color.LightCyan);
+            Console.WriteLine();
+            Console.WriteLine($"88. Verbose: {Verbose}", Color.Cyan);
+            Console.WriteLine("99. Exit", Color.LightPink);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Console.Clear();
+                PrintMainMenu();
+            }
+
+            switch (selection)
+            {
+                case 1: PrintGetMenu(); break;
+                case 2: PrintSearchMenu(); break;
+                case 3: PrintSortMenu(); break;
+
+                case 88:
+                    Verbose = !Verbose;
+                    Console.Clear();
+                    break;
+                case 99: Environment.Exit(0); break;
+            }
         }
 
         #endregion
