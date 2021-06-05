@@ -106,16 +106,20 @@ namespace stealerchecker
         {
             foreach (var file in files)
             {
-                SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
-                var match = Regex.Match(File.ReadAllText(file), @"∟💳(\d*)");
-                var cards = int.Parse(match.Groups[1].Value);
-
-                if (cards != 0)
+                if (Path.GetFileName(file) == "InfoHERE.txt"
+                       || Path.GetFileName(file) == "InfoHERE.html")
                 {
-                    Console.Write($"[{file}]", Color.Green);
-                    Console.WriteLine($" - {cards} cards!");
+                    SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
+                    var match = Regex.Match(File.ReadAllText(file), @"∟💳(\d*)");
+                    var cards = int.Parse(match.Groups[1].Value);
 
-                    Console.WriteLine(WriteCC(file));
+                    if (cards != 0)
+                    {
+                        Console.Write($"[{file}]", Color.Green);
+                        Console.WriteLine($" - {cards} cards!");
+
+                        Console.WriteLine(WriteCC(file));
+                    }
                 }
             }
             SetStatus();
@@ -392,24 +396,15 @@ namespace stealerchecker
         public static void SearchByURL(string query)
         {
             SetStatus("Working... ");
-
-            foreach (var password in SearchByURLHerlper(query))
-                if (!Verbose)
-                    Console.WriteLine(password, Color.LightGreen);
-
+            Console.WriteLine(string.Join(Environment.NewLine, SearchByURLHerlper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByURLHerlper(string query)
         {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Url.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}"); // не ворк почему-то...
-
-            return strPasses.Distinct().ToList();
+            if (!Verbose)
+                return glob.Where(x => x.Url.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}").Distinct().ToList();
+            else
+                return glob.Where(x => x.Url.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}\t{y.Url}").Distinct().ToList();
         }
 
         #endregion
@@ -418,24 +413,15 @@ namespace stealerchecker
         public static void SearchByUsername(string query)
         {
             SetStatus("Working... ");
-
-            foreach (var password in SearchByUsernameHelper(query))
-                if (!Verbose)
-                    Console.WriteLine(password, Color.LightGreen);
-
+            Console.WriteLine(string.Join(Environment.NewLine, SearchByUsernameHelper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByUsernameHelper(string query)
         {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Login.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}");
-
-            return strPasses.Distinct().ToList();
+            if (!Verbose)
+                return glob.Where(x => x.Login.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}").Distinct().ToList();
+            else
+                return glob.Where(x => x.Login.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}\t{y.Url}").Distinct().ToList();
         }
 
         #endregion
@@ -444,24 +430,15 @@ namespace stealerchecker
         public static void SearchByPass(string query)
         {
             SetStatus("Working... ");
-
-            foreach (var password in SearchByPassHelper(query))
-                if (!Verbose)
-                    Console.WriteLine(password, Color.LightGreen);
-
+            Console.WriteLine(string.Join(Environment.NewLine, SearchByPassHelper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByPassHelper(string query)
         {
-            var strPasses = new List<string>();
-            foreach (var x in glob)
-                if (x.Pass.Contains(query) && x.Login.Length > 2 && x.Pass.Length > 2)
-                    if (!Verbose)
-                        strPasses.Add($"{x.Login}:{x.Pass}");
-                    else
-                        strPasses.Add($"{x.Login}:{x.Pass}\t{x.Url}");
-
-            return strPasses.Distinct().ToList();
+            if (!Verbose)
+                return glob.Where(x => x.Pass.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}").Distinct().ToList();
+            else
+                return glob.Where(x => x.Pass.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).Select(y => $"{y.Login}:{y.Pass}\t{y.Url}").Distinct().ToList();
         }
 
         #endregion
@@ -674,7 +651,6 @@ namespace stealerchecker
 
             SetStatus();
         }
-
         public static List<Password> GetPasswords()
         {
             List<Password> passwords = new();
@@ -751,7 +727,7 @@ namespace stealerchecker
                 {
                     try
                     {
-                        var thisFile = FileCl.Load("Passwords.txt");
+                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "Passwords.txt"));
                         var log = Regex.Matches(thisFile.GetContent(), @"URL: (.*)\s*Username: (.*)\s*Password: (.*)");
 
                         pas.AddRange(log.OfType<Match>()

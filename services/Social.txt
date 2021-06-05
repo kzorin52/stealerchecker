@@ -6,3 +6,4 @@ tiktok.com
 twitter.com
 reddit.com
 pinterest.ru
+discord
