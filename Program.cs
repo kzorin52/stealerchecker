@@ -30,16 +30,21 @@ namespace stealerchecker
 
             [Option('e', "everything", Required = false, HelpText = "Use Everything service")]
             public bool Everything { get; set; }
+
+            [Option('a', "all", Required = false, HelpText = "Search all logs", Hidden = true)]
+            public bool All { get; set; }
         }
 
         #region FIELDS
 
-        private const string caption = "StealerChecker v7.7 by Temnij";
+        private const string caption = "StealerChecker v7.8 by Temnij";
         private static string path;
         private static readonly List<string> files = new();
         private static readonly List<string> directories = new();
         private static bool Verbose;
+        private static bool All;
         public static bool Everything;
+        public static string NewLine = Environment.NewLine;
 
         #endregion
 
@@ -49,10 +54,13 @@ namespace stealerchecker
             #region ARGUMENT PARSING
 
             Parser.Default.ParseArguments<Options>(args)
-                   .WithParsed(o => { path = o.Path; Verbose = o.Verbose; Everything = o.Everything; });
+                   .WithParsed(o => { path = o.Path; Verbose = o.Verbose; Everything = o.Everything; All = o.All; });
 
             if (string.IsNullOrEmpty(path))
+            {
+                Console.ReadKey();
                 Environment.Exit(-1);
+            }
 
             #endregion
             #region LOADING
@@ -136,7 +144,7 @@ namespace stealerchecker
             {
                 var thisFile = FileCl.Load(file);
                 if (thisFile.Info.Length > 5)
-                    returned += thisFile.GetContent() + Environment.NewLine;
+                    returned += thisFile.GetContent() + NewLine;
             }
 
             return returned;
@@ -284,7 +292,7 @@ namespace stealerchecker
             {
                 var thisFile = FileCl.Load(file);
                 if (thisFile.Info.Length > 5)
-                    returned += thisFile.GetContent() + Environment.NewLine;
+                    returned += thisFile.GetContent() + NewLine;
             }
 
             return returned;
@@ -364,7 +372,7 @@ namespace stealerchecker
                             Console.Write($"[{newfile}]", Color.Green);
                             Console.WriteLine(" - Discord");
 
-                            Console.WriteLine($"{string.Join(Environment.NewLine, tokens.Distinct().Where(x => x.Length > 5))}", Color.LightGreen);
+                            Console.WriteLine($"{string.Join(NewLine, tokens.Distinct().Where(x => x.Length > 5))}", Color.LightGreen);
                             tokensList.AddRange(tokens);
                         }
                     }
@@ -396,7 +404,7 @@ namespace stealerchecker
         public static void SearchByURL(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(Environment.NewLine, SearchByURLHerlper(query)), Color.LightGreen);
+            Console.WriteLine(string.Join(NewLine, SearchByURLHerlper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByURLHerlper(string query)
@@ -413,7 +421,7 @@ namespace stealerchecker
         public static void SearchByUsername(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(Environment.NewLine, SearchByUsernameHelper(query)), Color.LightGreen);
+            Console.WriteLine(string.Join(NewLine, SearchByUsernameHelper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByUsernameHelper(string query)
@@ -430,7 +438,7 @@ namespace stealerchecker
         public static void SearchByPass(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(Environment.NewLine, SearchByPassHelper(query)), Color.LightGreen);
+            Console.WriteLine(string.Join(NewLine, SearchByPassHelper(query)), Color.LightGreen);
             SetStatus();
         }
         private static List<string> SearchByPassHelper(string query)
@@ -808,11 +816,17 @@ namespace stealerchecker
             var pathsResult = new List<string>();
             var client = new EverythingClient();
 
-            foreach (var pattern in patterns)
-                pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
-                                .OfType<FileResultItem>()
-                                .Where(file => file.FullPath.StartsWith(path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
-                                .Select(x => x.FullPath));
+            if (!All)
+                foreach (var pattern in patterns)
+                    pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
+                                    .OfType<FileResultItem>()
+                                    .Where(file => file.FullPath.StartsWith(path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
+                                    .Select(x => x.FullPath));
+            else
+                foreach (var pattern in patterns)
+                    pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
+                                    .OfType<FileResultItem>()
+                                    .Select(x => x.FullPath));
             return pathsResult;
         }
 
@@ -1069,9 +1083,6 @@ namespace stealerchecker
 
     public static class Ext
     {
-        public static void WriteLine(this StringBuilder builder, string value)
-        {
-            builder.Append(value).Append(Environment.NewLine);
-        }
+        public static void WriteLine(this StringBuilder builder, string value) => builder.Append(value).Append(Environment.NewLine);
     }
 }
