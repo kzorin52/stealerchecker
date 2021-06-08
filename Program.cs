@@ -2,6 +2,9 @@
 using Everything;
 using Everything.Model;
 using FluentFTP;
+using Newtonsoft.Json.Linq;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +13,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -37,19 +41,21 @@ namespace stealerchecker
 
         #region FIELDS
 
-        private const string caption = "StealerChecker v7.8 by Temnij";
-        private static string path;
-        private static readonly List<string> files = new();
-        private static readonly List<string> directories = new();
-        private static bool Verbose;
-        private static bool All;
-        public static bool Everything;
-        public static string NewLine = Environment.NewLine;
+        internal static string tag = "7.8";
+        internal static string caption = $"StealerChecker v{tag} by Temnij";
+        internal static string path;
+        internal static readonly List<string> files = new();
+        internal static readonly List<string> directories = new();
+        internal static bool Verbose;
+        internal static bool All;
+        internal static bool Everything;
+        internal static string NewLine = Environment.NewLine;
 
         #endregion
 
         private static void Main(string[] args)
         {
+            //Update();
             SetStatus();
             #region ARGUMENT PARSING
 
@@ -92,12 +98,12 @@ namespace stealerchecker
 
         #region FILES
 
-        public static void AddDirectories()
+        internal static void AddDirectories()
         {
             foreach (var directory in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
                 directories.Add(directory);
         }
-        public static void AddFiles()
+        internal static void AddFiles()
         {
             foreach (var dir in directories)
                 foreach (var file in Directory.GetFiles(dir))
@@ -110,7 +116,7 @@ namespace stealerchecker
         #endregion
         #region CCs
 
-        public static void GetCC()
+        internal static void GetCC()
         {
             foreach (var file in files)
             {
@@ -132,7 +138,7 @@ namespace stealerchecker
             }
             SetStatus();
         }
-        public static string WriteCC(string path)
+        internal static string WriteCC(string path)
         {
             var returned = "";
 
@@ -153,7 +159,7 @@ namespace stealerchecker
         #endregion
         #region FTPs
 
-        public static void GetFTP()
+        internal static void GetFTP()
         {
             foreach (var file in files)
             {
@@ -206,7 +212,7 @@ namespace stealerchecker
             }
             SetStatus();
         }
-        public static void WriteFileZila(string path)
+        internal static void WriteFileZila(string path)
         {
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
@@ -220,7 +226,7 @@ namespace stealerchecker
                 Console.WriteLine();
             }
         }
-        public static void CheckFileZilla(string fileZillaLog)
+        internal static void CheckFileZilla(string fileZillaLog)
         {
             const string pattern = @"Host: (.*)\s*Port: (.*)\s*User: (.*)\s*Pass: (.*)";
             foreach (Match match in Regex.Matches(fileZillaLog, pattern))
@@ -280,7 +286,7 @@ namespace stealerchecker
                 }
             }
         }
-        public static string WriteTotalCmd(string path)
+        internal static string WriteTotalCmd(string path)
         {
             var returned = "";
 
@@ -301,7 +307,7 @@ namespace stealerchecker
         #endregion
         #region DISCORD
 
-        public static void GetDiscord()
+        internal static void GetDiscord()
         {
             List<string> tokens = new();
 
@@ -337,7 +343,7 @@ namespace stealerchecker
 
             File.WriteAllLines("DiscordTokens.txt", tokens.Distinct());
         }
-        public static List<string> WriteDiscord(string path, bool redline)
+        internal static List<string> WriteDiscord(string path, bool redline)
         {
             List<string> tokensList = new();
 
@@ -385,7 +391,7 @@ namespace stealerchecker
 
             return tokensList;
         }
-        public static List<string> CheckDiscord(string content)
+        internal static List<string> CheckDiscord(string content)
         {
             var tokens = new List<string>();
             foreach (Match match in Regex.Matches(content, "[^\"]*"))
@@ -401,7 +407,7 @@ namespace stealerchecker
 
         #region URL
 
-        public static void SearchByURL(string query)
+        internal static void SearchByURL(string query)
         {
             SetStatus("Working... ");
             Console.WriteLine(string.Join(NewLine, SearchByURLHerlper(query)), Color.LightGreen);
@@ -418,7 +424,7 @@ namespace stealerchecker
         #endregion
         #region USERNAME
 
-        public static void SearchByUsername(string query)
+        internal static void SearchByUsername(string query)
         {
             SetStatus("Working... ");
             Console.WriteLine(string.Join(NewLine, SearchByUsernameHelper(query)), Color.LightGreen);
@@ -435,7 +441,7 @@ namespace stealerchecker
         #endregion
         #region PASSWORD
 
-        public static void SearchByPass(string query)
+        internal static void SearchByPass(string query)
         {
             SetStatus("Working... ");
             Console.WriteLine(string.Join(NewLine, SearchByPassHelper(query)), Color.LightGreen);
@@ -454,9 +460,9 @@ namespace stealerchecker
         #endregion
         #region TELEGRAM
 
-        public static int counter = 0;
+        internal static int counter = 0;
 
-        public static void GetTelegram()
+        internal static void GetTelegram()
         {
             if (!Directory.Exists("Telegram"))
             {
@@ -500,7 +506,7 @@ namespace stealerchecker
 
             goto again;
         }
-        public static void CopyTelegram(string path)
+        internal static void CopyTelegram(string path)
         {
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
@@ -527,7 +533,7 @@ namespace stealerchecker
         #endregion
         #region SORT LOGS
 
-        public static void SortLogs()
+        internal static void SortLogs()
         {
             List<KeyValuePair<string, DateTime>> result = new();
             Console.WriteLine("Loading...", Color.DarkCyan);
@@ -633,12 +639,12 @@ namespace stealerchecker
         #endregion
         #region STATUS FUNCTIONS
 
-        public static void SetStatus(string status)
+        internal static void SetStatus(string status)
         {
             Console.Title = caption + " | " + status;
         }
 
-        public static void SetStatus()
+        internal static void SetStatus()
         {
             Console.Title = caption;
         }
@@ -650,7 +656,7 @@ namespace stealerchecker
         private static int count2 = 0;
         private static List<Password> glob;
 
-        public static void SortLogsbyCategories()
+        internal static void SortLogsbyCategories()
         {
             SetStatus("Loading...");
 
@@ -659,7 +665,7 @@ namespace stealerchecker
 
             SetStatus();
         }
-        public static List<Password> GetPasswords()
+        internal static List<Password> GetPasswords()
         {
             List<Password> passwords = new();
 
@@ -750,7 +756,7 @@ namespace stealerchecker
 
             return passwords.Distinct().ToList();
         }
-        public static void ProcessFile(string path)
+        internal static void ProcessFile(string path)
         {
             var categoryName = Path.Combine("Categories", Path.GetFileNameWithoutExtension(path));
             var services = File.ReadAllLines(path);
@@ -784,13 +790,13 @@ namespace stealerchecker
             }
             counter2 = 0;
         }
-        public class Password
+        internal class Password
         {
-            public string Url;
-            public string Login;
-            public string Pass;
+            internal string Url;
+            internal string Login;
+            internal string Pass;
 
-            public Password(string url, string login, string pass)
+            internal Password(string url, string login, string pass)
             {
                 Url = url;
                 Login = login;
@@ -801,7 +807,7 @@ namespace stealerchecker
         #endregion
         #region EVERYTHING
 
-        public static async Task GetFilesAsync()
+        internal static async Task GetFilesAsync()
         {
             var patterns = new List<string>()
             {
@@ -811,7 +817,7 @@ namespace stealerchecker
             };
             files.AddRange(await GetPathsAsync(patterns).ConfigureAwait(false));
         }
-        public static async Task<List<string>> GetPathsAsync(List<string> patterns)
+        internal static async Task<List<string>> GetPathsAsync(List<string> patterns)
         {
             var pathsResult = new List<string>();
             var client = new EverythingClient();
@@ -833,7 +839,7 @@ namespace stealerchecker
         #endregion
         #region MENU
 
-        public static void PrintSearchMenu()
+        internal static void PrintSearchMenu()
         {
             Console.Clear();
             Console.WriteLine("Searhing", Color.Pink);
@@ -878,7 +884,7 @@ namespace stealerchecker
                 default: PrintSearchMenu(); break;
             }
         }
-        public static void PrintSortMenu()
+        internal static void PrintSortMenu()
         {
             Console.Clear();
             Console.WriteLine("Sorting", Color.Pink);
@@ -912,7 +918,7 @@ namespace stealerchecker
                 default: PrintSortMenu(); break;
             }
         }
-        public static void PrintGetMenu()
+        internal static void PrintGetMenu()
         {
             Console.Clear();
             Console.WriteLine("Getting", Color.Pink);
@@ -950,7 +956,7 @@ namespace stealerchecker
                 default: PrintGetMenu(); break;
             }
         }
-        public static void PrintAnalysisMenu()
+        internal static void PrintAnalysisMenu()
         {
             Console.Clear();
             Console.WriteLine("Analysis", Color.Pink);
@@ -985,7 +991,7 @@ namespace stealerchecker
                 default: PrintAnalysisMenu(); break;
             }
         }
-        public static void PrintMainMenu()
+        internal static void PrintMainMenu()
         {
             Console.WriteLine();
             Console.WriteAscii("StealerChecker", Color.Pink);
@@ -1029,7 +1035,7 @@ namespace stealerchecker
         #endregion
         #region ANALYSIS
 
-        public static string AnalyzeMostPopularURLs()
+        internal static string AnalyzeMostPopularURLs()
         {
             var top3 = new StringBuilder();
             var percentages = new List<KeyValuePair<decimal, string>>();
@@ -1044,7 +1050,7 @@ namespace stealerchecker
 
             return top3.ToString();
         }
-        public static decimal AnalyzeLoginInPass()
+        internal static decimal AnalyzeLoginInPass()
         {
             SetStatus("Analyzing...");
             var count = glob
@@ -1053,7 +1059,7 @@ namespace stealerchecker
 
             return Math.Round(GetPercent(glob.Count, count), 2);
         }
-        public static decimal AnalyzePercentOfURL(string url)
+        internal static decimal AnalyzePercentOfURL(string url)
         {
             SetStatus("Analyzing...");
             var count = glob
@@ -1062,7 +1068,7 @@ namespace stealerchecker
 
             return Math.Round(GetPercent(glob.Count, count), 2);
         }
-        public static decimal AnalyzeLoginEqualsPass()
+        internal static decimal AnalyzeLoginEqualsPass()
         {
             SetStatus("Analyzing...");
             var count = glob
@@ -1071,7 +1077,7 @@ namespace stealerchecker
 
             return Math.Round(GetPercent(glob.Count, count), 2);
         }
-        public static decimal GetPercent(int b, int a)
+        internal static decimal GetPercent(int b, int a)
         {
             if (b == 0) return 0;
 
@@ -1079,10 +1085,61 @@ namespace stealerchecker
         }
 
         #endregion
+        #region UPDATING
+
+        internal static void Update()
+        {
+            var wc = new WebClient() { Proxy = null };
+            wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36 OPR/75.0.3969.282 (Edition Yx GX)";
+
+            var json = JObject.Parse(wc.DownloadString("https://api.github.com/repos/kzorin52/stealerchecker/releases/latest"));
+            var lastestTag = json["tag_name"].ToString();
+            var downUrl = json["assets"].ToList()[0]["browser_download_url"].ToString();
+
+            if (tag != lastestTag)
+            {
+                Console.WriteLine("Updating...", Color.LightGreen);
+                wc.DownloadFile(downUrl, "Update.rar");
+                var currentName = Assembly.GetExecutingAssembly().GetName().Name;
+
+                var archive = ArchiveFactory.Open("Update.rar");
+                foreach (var entry in archive.Entries)
+                {
+                    if (!entry.IsDirectory)
+                    {
+                        try
+                        {
+                            if (!entry.Key.Contains("stealerchecker"))
+                                entry.WriteToDirectory(Directory.GetCurrentDirectory(), new ExtractionOptions() { ExtractFullPath = true, Overwrite = true });
+                            else
+                            {
+                                using var stream = new FileStream("stealerchecker_new.exe", FileMode.OpenOrCreate); // эта параша не ворк
+                                entry.WriteTo(stream); // потому что кривая либа
+                                stream.Flush(); // принимает exe за архив и распаковывает только часть exe
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                var content = "@echo off" + NewLine
+                    + "timeout 2 > NUL" + NewLine
+                    + $"move /Y stealerchecker_new.exe {currentName}.exe" + NewLine
+                   // + "del Update.rar" + NewLine
+                    + "del %~s0 /q";
+                File.WriteAllText("update.cmd", content);
+
+                Process.Start("update.cmd");
+                Process.GetProcessesByName(currentName).ToList().ForEach(x => x.Kill());
+                Environment.Exit(0);
+            }
+        }
+
+        #endregion
     }
 
-    public static class Ext
+    internal static class Ext
     {
-        public static void WriteLine(this StringBuilder builder, string value) => builder.Append(value).Append(Environment.NewLine);
+        internal static void WriteLine(this StringBuilder builder, string value) => builder.Append(value).Append(Environment.NewLine);
     }
 }
