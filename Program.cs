@@ -273,7 +273,7 @@ namespace stealerchecker
                         client.Connect();
                         client.Disconnect();
 
-                        Console.WriteLine($"{Host}:{Port};{User}:{Pass} - GOOD (ANON)", Color.LightGreen);
+                        Console.WriteLine($"{Host}:{Port};anonymous: - GOOD (ANON)", Color.LightGreen);
                     }
                     catch
                     {
@@ -961,9 +961,11 @@ namespace stealerchecker
             Console.Clear();
             Console.WriteLine("Analysis", Color.Pink);
             Console.WriteLine();
-            Console.Write("1. Username in the password - ", Color.LightCyan);
+            Console.Write("1. Total Passwords - ", Color.LightCyan);
+            Console.WriteLine(glob.Count, Color.DarkCyan);
+            Console.Write("2. Username in the password - ", Color.LightCyan);
             Console.WriteLine($"~{AnalyzeLoginInPass()}%", Color.DarkCyan);
-            Console.Write("2. Username = password - ", Color.LightCyan);
+            Console.Write("3. Username = password - ", Color.LightCyan);
             Console.WriteLine($"~{AnalyzeLoginEqualsPass()}%", Color.DarkCyan);
             //Console.WriteLine("3. Most popular URLs:", Color.LightCyan);
             //Console.WriteLine(AnalyzeMostPopularURLs(), Color.DarkCyan);
