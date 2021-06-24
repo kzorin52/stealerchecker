@@ -1078,7 +1078,7 @@ namespace stealerchecker
             var query = glob.GroupBy(x => x.Url)
                             .Select(group => new { group.Key, Count = group.Count() })
                             .OrderByDescending(x => x.Count);
-            foreach (var item in query.Take(5)) if (item.Key.Length > 3) top3.WriteLine($"\t{item.Key}");
+            foreach (var item in query.Take(5)) if (item.Key.Length > 3) top3.WriteLine($"\t{item.Key} - {Math.Round(GetPercent(glob.Count, item.Count), 2)}% ({item.Count} accounts)");
             return top3.ToString();
         }
         internal static decimal AnalyzeLoginInPass()
