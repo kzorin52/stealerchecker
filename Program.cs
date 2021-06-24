@@ -875,8 +875,6 @@ namespace stealerchecker
                     .Replace("+", "");
 
                 File.AppendAllText(filename, $"{login}:{pass.Pass}");
-                File.WriteAllLines(filename, File.ReadAllLines(filename).Distinct());
-
             }
             counter2 = 0;
         }
