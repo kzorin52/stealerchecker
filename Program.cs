@@ -42,7 +42,7 @@ namespace stealerchecker
 
         #region FIELDS
 
-        internal static string tag = "8.0";
+        internal static string tag = "8.1";
         internal static string caption = $"StealerChecker v{tag} by Temnij";
         internal static string path;
         internal static readonly List<string> files = new();
@@ -56,6 +56,13 @@ namespace stealerchecker
 
         private static void Main(string[] args)
         {
+            #region SETINGS
+
+            Console.WindowWidth = 86;
+            Console.BufferWidth = 86;
+            Console.BufferHeight = 9999;
+
+            #endregion
             // Update();
             SetStatus();
             #region ARGUMENT PARSING
@@ -410,15 +417,15 @@ namespace stealerchecker
                     try
                     {
                         if (discord)
-                            tokens.AddRange(WriteDiscord(file, false));
+                            tokens.AddRange(WriteDiscord(file));
                     }
                     catch { }
                 }
-                else if (info.Name == "UserInformation.txt")
+                else if (info.Name == "UserInformation.txt" || info.Name == "~Work.log")
                 {
                     try
                     {
-                        tokens.AddRange(WriteDiscord(file, true));
+                        tokens.AddRange(WriteDiscord(file));
                     }
                     catch { }
                 }
@@ -427,18 +434,21 @@ namespace stealerchecker
 
             File.WriteAllLines("DiscordTokens.txt", tokens.Distinct());
         }
-        internal static List<string> WriteDiscord(string path, bool redline)
+        internal static List<string> WriteDiscord(string path)
         {
             List<string> tokensList = new();
 
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
-            string discordDir;
+            string discordDir = default;
+            var name = Path.GetFileName(path);
 
-            if (!redline)
+            if (name == "InfoHERE.txt" || name == "InfoHERE.html")
                 discordDir = Path.Combine(dir, "Discord", "Local Storage", "leveldb");
-            else
+            else if (name == "UserInformation.txt")
                 discordDir = Path.Combine(dir, "Discord");
+            else if (name == "~Work.log")
+                discordDir = Path.Combine(dir, "Other");
 
 
             foreach (var file in Directory.GetFiles(discordDir))
@@ -454,15 +464,15 @@ namespace stealerchecker
                             Console.WriteLine();
                             var newfile = "";
                             if (File.Exists(file))
-                                if (!redline)
+                                if (name == "InfoHERE.txt" || name == "InfoHERE.html")
                                     newfile = FileCl.Load(file).Info.Directory.Parent.Parent.Parent.FullName;
-                                else
+                                else if (name == "UserInformation.txt" || name == "~Work.log")
                                     newfile = FileCl.Load(file).Info.Directory.Parent.FullName;
 
                             Console.Write($"[{newfile}]", Color.Green);
                             Console.WriteLine(" - Discord");
 
-                            Console.WriteLine($"{string.Join(NewLine, tokens.Distinct().Where(x => x.Length > 5))}", Color.LightGreen);
+                            Console.WriteLine($"{string.Join(NewLine, tokens.Where(x => x.Length > 5))}", Color.LightGreen);
                             tokensList.AddRange(tokens);
                         }
                     }
@@ -475,16 +485,12 @@ namespace stealerchecker
 
             return tokensList;
         }
-        internal static List<string> CheckDiscord(string content)
-        {
-            var tokens = new List<string>();
-            foreach (Match match in Regex.Matches(content, "[^\"]*"))
-                if (match.Length == 59 && match.Value.StartsWith("N") && Regex.IsMatch(match.Value, @"[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}"))
-                    tokens.Add(match.Value);
-
-            tokens.Distinct();
-            return tokens;
-        }
+        internal static List<string> CheckDiscord(string content) =>
+            Regex.Matches(content, @"[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}")
+            .OfType<Match>()
+            .Select(x => x.Value)
+            .Distinct()
+            .ToList();
 
         #endregion
         #region SEARCH
@@ -553,10 +559,13 @@ namespace stealerchecker
 
             foreach (var file in files)
             {
-                var match = Regex.Match(File.ReadAllText(file), "✈️ Telegram: (❌|✅)");
+                var fn = Path.GetFileName(file);
+                if (fn == "InfoHERE.txt" || fn == "InfoHERE.html")
+                    if (Regex.Match(File.ReadAllText(file), "✈️ Telegram: (❌|✅)").Groups[1].Value == "✅")
+                        CopyTelegram(file);
+                else if(fn == "~Work.log" && Directory.Exists(Path.Combine(new FileInfo(file).DirectoryName, "Other", "Telegram", "tdata")))
+                        CopyTelegram(file);
 
-                if (match.Groups[1].Value == "✅")
-                    CopyTelegram(file);
             }
             SetStatus();
 
@@ -594,11 +603,13 @@ namespace stealerchecker
         {
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
-            var tgDir = "";
+            string tgDir = "";
+            var fn = Path.GetFileName(path);
 
-            foreach (var tempDir in Directory.GetDirectories(dir))
-                if (new DirectoryInfo(tempDir).Name.StartsWith("Telegram"))
-                    tgDir = tempDir;
+            if (fn == "InfoHERE.txt" || fn == "InfoHERE.html")
+                tgDir = Array.Find(Directory.GetDirectories(dir), x => new DirectoryInfo(x).Name.StartsWith("Telegram"));
+            else if(fn == "~Work.log")
+                tgDir = Path.Combine(new FileInfo(path).DirectoryName, "Other", "Telegram", "tdata");
 
             CopyFilesRecursively(tgDir, Path.Combine(Directory.GetCurrentDirectory(), "Telegram", counter.ToString()));
             counter++;
@@ -759,6 +770,8 @@ namespace stealerchecker
         {
             List<Password> passwords = new();
 
+            SetStatus("Loading... 100%... Processing...");
+
             foreach (var filePas in files)
             {
                 var pas = new List<Password>();
@@ -840,6 +853,28 @@ namespace stealerchecker
                     }
                     catch { }
                 }
+                else if (filecl.Info.Name == "~Work.log")
+                {
+                    try
+                    {
+                        var filename = Array
+                            .Find(Directory.GetFiles(Path.Combine(filecl.Info.DirectoryName, "Browsers")),
+                            x => Path.GetFileName(x).StartsWith("Passwords"));
+                        if (filename == default)
+                            continue;
+
+                        var thisFile = FileCl.Load(filename);
+                        var log = Regex.Matches(thisFile.GetContent(), @"URL: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                        pas.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value.Replace("\r", ""),
+                                        match.Groups[2].Value.Replace("\r", ""),
+                                        match.Groups[3].Value.Replace("\r", "")))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
 
                 passwords.AddRange(pas);
             }
@@ -901,26 +936,40 @@ namespace stealerchecker
             {
                 "InfoHERE.txt",
                 "InfoHERE.html",
-                "UserInformation.txt"
+                "UserInformation.txt",
+                "~Work.log"
             };
             files.AddRange(await GetPathsAsync(patterns).ConfigureAwait(false));
         }
+        static int progress = 0;
         internal static async Task<List<string>> GetPathsAsync(List<string> patterns)
         {
             var pathsResult = new List<string>();
             var client = new EverythingClient();
 
             if (!All)
+            {
                 foreach (var pattern in patterns)
+                {
+                    SetStatus($"Loading... {progress}%");
                     pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
                                     .OfType<FileResultItem>()
                                     .Where(file => file.FullPath.StartsWith(path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
                                     .Select(x => x.FullPath));
+                    progress += Convert.ToInt32(Math.Round((decimal)(100 / (patterns.Count - 1))));
+                }
+            }
             else
+            {
                 foreach (var pattern in patterns)
+                {
+                    SetStatus($"Loading... {progress}%");
                     pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
                                     .OfType<FileResultItem>()
                                     .Select(x => x.FullPath));
+                    progress += Convert.ToInt32(Math.Round((decimal)(100 / (patterns.Count - 1))));
+                }
+            }
             return pathsResult;
         }
 
@@ -1110,7 +1159,6 @@ namespace stealerchecker
         internal static decimal GetPercent(int b, int a)
         {
             if (b == 0) return 0;
-
             return a / (b / 100M);
         }
 
