@@ -42,7 +42,7 @@ namespace stealerchecker
 
         #region FIELDS
 
-        internal static string tag = "8.1";
+        internal static string tag = "8.2";
         internal static string caption = $"StealerChecker v{tag} by Temnij";
         internal static string path;
         internal static readonly List<string> files = new();
@@ -51,6 +51,14 @@ namespace stealerchecker
         internal static bool All;
         internal static bool Everything;
         internal static string NewLine = Environment.NewLine;
+        internal static List<string> patterns = new()
+        {
+            "InfoHERE.txt", // Echelon
+            "InfoHERE.html", // Echelon (mod)
+            "UserInformation.txt", // RedLine
+            "~Work.log", // DCRat Stealer mode
+            "System Info.txt" // Raccoon Stealer
+        };
 
         #endregion
 
@@ -112,17 +120,12 @@ namespace stealerchecker
 
         internal static void AddDirectories()
         {
-            foreach (var directory in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
-                directories.Add(directory);
+            directories.AddRange(Directory.GetDirectories(path, "*", SearchOption.AllDirectories));
         }
         internal static void AddFiles()
         {
             foreach (var dir in directories)
-                foreach (var file in Directory.GetFiles(dir))
-                    if (Path.GetFileName(file) == "InfoHERE.txt"
-                        || Path.GetFileName(file) == "InfoHERE.html"
-                        || Path.GetFileName(file) == "UserInformation.txt")
-                        files.Add(file);
+                files.AddRange(Directory.GetFiles(dir).Where(x => patterns.Contains(Path.GetFileName(x))));
         }
 
         #endregion
@@ -563,7 +566,7 @@ namespace stealerchecker
                 if (fn == "InfoHERE.txt" || fn == "InfoHERE.html")
                     if (Regex.Match(File.ReadAllText(file), "✈️ Telegram: (❌|✅)").Groups[1].Value == "✅")
                         CopyTelegram(file);
-                else if(fn == "~Work.log" && Directory.Exists(Path.Combine(new FileInfo(file).DirectoryName, "Other", "Telegram", "tdata")))
+                    else if (fn == "~Work.log" && Directory.Exists(Path.Combine(new FileInfo(file).DirectoryName, "Other", "Telegram", "tdata")))
                         CopyTelegram(file);
 
             }
@@ -608,7 +611,7 @@ namespace stealerchecker
 
             if (fn == "InfoHERE.txt" || fn == "InfoHERE.html")
                 tgDir = Array.Find(Directory.GetDirectories(dir), x => new DirectoryInfo(x).Name.StartsWith("Telegram"));
-            else if(fn == "~Work.log")
+            else if (fn == "~Work.log")
                 tgDir = Path.Combine(new FileInfo(path).DirectoryName, "Other", "Telegram", "tdata");
 
             CopyFilesRecursively(tgDir, Path.Combine(Directory.GetCurrentDirectory(), "Telegram", counter.ToString()));
@@ -853,6 +856,19 @@ namespace stealerchecker
                     }
                     catch { }
                 }
+                else if (filecl.Info.Name == "System Info.txt")
+                {
+                    try
+                    {
+                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "Passwords.txt"));
+                        var log = Regex.Matches(thisFile.GetContent(), @"HOST: (.*)\s*USER: (.*)\s*PASS: (.*)");
+
+                        pas.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
                 else if (filecl.Info.Name == "~Work.log")
                 {
                     try
@@ -934,10 +950,11 @@ namespace stealerchecker
         {
             var patterns = new List<string>()
             {
-                "InfoHERE.txt",
-                "InfoHERE.html",
-                "UserInformation.txt",
-                "~Work.log"
+                "InfoHERE.txt", // Echelon
+                "InfoHERE.html", // Echelon (mod)
+                "UserInformation.txt", // RedLine
+                "~Work.log", // DCRat
+                "System Info.txt" // Raccoon 
             };
             files.AddRange(await GetPathsAsync(patterns).ConfigureAwait(false));
         }
