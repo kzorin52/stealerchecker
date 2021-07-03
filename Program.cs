@@ -44,7 +44,7 @@ namespace stealerchecker
 
         internal static string tag = "8.2";
         internal static string caption = $"StealerChecker v{tag} by Temnij";
-        internal static string path;
+        internal static string path; // 0O
         internal static readonly List<string> files = new();
         internal static readonly List<string> directories = new();
         internal static bool Verbose;
@@ -257,7 +257,8 @@ namespace stealerchecker
                 Console.WriteLine();
             }
         }
-        static List<string> goodFTPs = new();
+
+        private static readonly List<string> goodFTPs = new();
         internal static void CheckFileZilla(string fileZillaLog)
         {
             const string pattern = @"Host: (.*)\s*Port: (.*)\s*User: (.*)\s*Pass: (.*)";
@@ -453,7 +454,6 @@ namespace stealerchecker
             else if (name == "~Work.log")
                 discordDir = Path.Combine(dir, "Other");
 
-
             foreach (var file in Directory.GetFiles(discordDir))
             {
                 try
@@ -482,7 +482,6 @@ namespace stealerchecker
                 }
                 catch
                 {
-
                 }
             }
 
@@ -568,11 +567,10 @@ namespace stealerchecker
                         CopyTelegram(file);
                     else if (fn == "~Work.log" && Directory.Exists(Path.Combine(new FileInfo(file).DirectoryName, "Other", "Telegram", "tdata")))
                         CopyTelegram(file);
-
             }
             SetStatus();
 
-            again:
+        again:
             var dirs = new List<string>();
             foreach (var dir in Directory.GetDirectories("Telegram"))
                 dirs.Add(new DirectoryInfo(dir).Name);
@@ -840,7 +838,6 @@ namespace stealerchecker
                     }
                     catch
                     {
-
                     }
                 }
                 else if (filecl.Info.Name == "UserInformation.txt")
@@ -954,11 +951,12 @@ namespace stealerchecker
                 "InfoHERE.html", // Echelon (mod)
                 "UserInformation.txt", // RedLine
                 "~Work.log", // DCRat
-                "System Info.txt" // Raccoon 
+                "System Info.txt" // Raccoon
             };
             files.AddRange(await GetPathsAsync(patterns).ConfigureAwait(false));
         }
-        static int progress = 0;
+
+        private static int progress = 0;
         internal static async Task<List<string>> GetPathsAsync(List<string> patterns)
         {
             var pathsResult = new List<string>();
@@ -1254,8 +1252,10 @@ namespace stealerchecker
             "Armory",
             "LitecoinCore"
         };
-        static void GetAllWallets() { foreach (var wallet in wallets) GetSpecWallets(wallet); }
-        static void GetSpecWallets(string WalletName)
+
+        private static void GetAllWallets() { foreach (var wallet in wallets) GetSpecWallets(wallet); }
+
+        private static void GetSpecWallets(string WalletName)
         {
             var withWallet = files
                 .Where(file => Directory.Exists(Path.Combine(new FileInfo(file).Directory.FullName, "Wallets", WalletName)))
