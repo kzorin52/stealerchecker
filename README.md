@@ -1,5 +1,5 @@
 # StealerChecker by Temnij
-Инструмент для работы с логами Echelon
+Инструмент для работы с логами Echelon, RedLine, Racoon, DCRat
 <br>
 Запуск:<br>
 ```
