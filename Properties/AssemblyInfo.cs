@@ -1,12 +1,11 @@
 ﻿using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // Общие сведения об этой сборке предоставляются следующим набором
 // набора атрибутов. Измените значения этих атрибутов для изменения сведений,
 // связанные с этой сборкой.
 [assembly: AssemblyTitle("StealerChecker")]
-[assembly: AssemblyDescription("Набор для работы с логами Echelon")]
+[assembly: AssemblyDescription("Набор для работы с логами")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Temnij")]
 [assembly: AssemblyProduct("StealerChecker")]
@@ -29,8 +28,8 @@ using System.Runtime.InteropServices;
 //      Номер сборки
 //      Номер редакции
 //
-// Можно задать все значения или принять номера сборки и редакции по умолчанию 
+// Можно задать все значения или принять номера сборки и редакции по умолчанию
 // используя "*", как показано ниже:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("8.1.0.0")]
-[assembly: AssemblyFileVersion("8.1.0.0")]
+[assembly: AssemblyVersion("8.3.0.0")]
+[assembly: AssemblyFileVersion("8.3.0.0")]
