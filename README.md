@@ -1,5 +1,5 @@
 # StealerChecker by Temnij
-Инструмент для работы с логами Echelon
+Инструмент для работы с логами Echelon, RedLine, Racoon, DCRat
 <br>
 Запуск:<br>
 ```
@@ -19,7 +19,7 @@ Copyright Temnij 2021
   --version           Display version information.
 
 ```
-![Скриншот](Image%201105.jpg)
+![Скриншот](https://i.imgur.com/Vha0B1u.png)
 
 # Базовые функции
 * `Get CCs` - Вытаскивает все карточки из логов
