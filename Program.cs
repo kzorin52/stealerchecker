@@ -1208,7 +1208,7 @@ namespace stealerchecker
                 Process.GetProcessesByName(currentName).ToList().ForEach(x => x.Kill());
                 Environment.Exit(0);
             }
-        }
+        } // test
 
         #endregion
         #region WALLETS
