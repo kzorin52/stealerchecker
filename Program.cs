@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TemnijExt;
 using static stealerchecker.Program;
@@ -1064,7 +1065,7 @@ namespace stealerchecker
         {
             menu = new Dictionary<string, Action>()
                 {
-                    { $"Check all services (current: {checkers.Count})", CheckAll },
+                    { $"Check all services (current: {checkers?.Count})", CheckAll },
                     { "Set proxy (required for checkers)", SetProxy }
                 }.ToList(),
             Name = "Check (ALPHA)"
@@ -1276,7 +1277,7 @@ namespace stealerchecker
         {
             new Checkers.Aternos()
         };
-        private static List<string> proxy = new List<string>();
+        private static List<string> proxy = new();
         private static ProxyType type;
 
         public static void Check(Checkers.IChecker checker)
@@ -1285,12 +1286,12 @@ namespace stealerchecker
                 Directory.CreateDirectory("Checked");
 
             var passwords = SearchByURLHerlper(checker.Service);
-            var threads = new List<Task>();
+            var threads = new List<Thread>();
             var index = 0;
 
             foreach (var password in passwords.Shuffle())
             {
-                threads.Add(new Task(() =>
+                threads.Add(new Thread(() =>
                 {
                     if (index >= proxy.Count)
                         index = 0;
@@ -1306,7 +1307,7 @@ namespace stealerchecker
             for (int i = 0; i < threads.Count; i++)
             {
                 SetStatus($"Checking by {checker.Service}, {Convert.ToInt32(Math.Round(GetPercent(threads.Count, i), 1))}%");
-                if (!threads[i].IsCompleted)
+                if (!threads[i].IsAlive)
                     threads[i].Wait();
             }
         }
@@ -1420,6 +1421,11 @@ namespace stealerchecker
                 .CurrentCulture
                 .CompareInfo
                 .IndexOf(a, b, 0, a.Length, CompareOptions.IgnoreCase) >= 0;
+        }
+        public static void Wait(this Thread th)
+        {
+            while(th.IsAlive)
+                Thread.Sleep(1);
         }
     }
     public class Log
