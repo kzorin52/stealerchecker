@@ -18,8 +18,8 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -63,13 +63,11 @@
       <HintPath>packages\CommandLineParser.2.9.0-preview1\lib\net461\CommandLine.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Everything" />
     <Reference Include="Everything">
-      <HintPath>..\..\..\Desktop\everything-master\everything-master\Everything\bin\Debug\net472\Everything.dll</HintPath>
+      <HintPath>..\..\..\Desktop\everything-master\everything-master\Everything\bin\Release\net48\Everything.dll</HintPath>
     </Reference>
-    <Reference Include="EverythingNet" />
     <Reference Include="EverythingNet">
-      <HintPath>..\..\..\Desktop\EverythingNet-master\EverythingNet-master\EverythingNet.Bench\bin\Release\EverythingNet.dll</HintPath>
+      <HintPath>..\..\..\Desktop\EverythingNet-master\EverythingNet-master\EverythingNet\bin\Release\EverythingNet.dll</HintPath>
     </Reference>
     <Reference Include="FluentFTP, Version=34.0.1.0, Culture=neutral, PublicKeyToken=f4af092b1d8df44f, processorArchitecture=MSIL">
       <HintPath>packages\FluentFTP.34.0.1\lib\net45\FluentFTP.dll</HintPath>
@@ -118,9 +116,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Checkers.cs" />
-    <Compile Include="Models.cs" />
+    <Compile Include="Classes\CheckResult.cs" />
+    <Compile Include="Classes\Ext.cs" />
+    <Compile Include="Classes\Log.cs" />
+    <Compile Include="Classes\Menu.cs" />
+    <Compile Include="Classes\Models.cs" />
+    <Compile Include="Classes\Password.cs" />
+    <Compile Include="Classes\Options.cs" />
+    <Compile Include="Classes\StealerType.cs" />
+    <Compile Include="Classes\DiscordChecker.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Classes\Service.cs" />
+    <Compile Include="Classes\ResponseModel.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
