@@ -81,12 +81,16 @@ namespace stealerchecker
 
             if (string.IsNullOrEmpty(opt.Path))
             {
-                Console.WriteLine("Проблемы?\n" +
-                    "1. Создайте файл start.cmd в этой же папке\n" +
-                    "2. Пропишите в нём: stealerchecker.exe -p c:/путь/до/папки/с/логами\n" +
-                    "3. Кликните по нему два раза", Color.Red);
-                Console.ReadKey();
-                Environment.Exit(-1);
+                //Console.WriteLine("Проблемы?\n" +
+                //    "1. Создайте файл start.cmd в этой же папке\n" +
+                //    "2. Пропишите в нём: stealerchecker.exe -p c:/путь/до/папки/с/логами\n" +
+                //    "3. Кликните по нему два раза", Color.Red);
+                //Console.ReadKey();
+                //Environment.Exit(-1);
+
+                Console.Clear();
+
+                opt.Path = GetDialog();
             }
 
             #endregion
@@ -161,6 +165,19 @@ namespace stealerchecker
                     }
                 })
                 .Where(x => !string.IsNullOrEmpty(x.Name)));
+        }
+
+        public static string GetDialog(bool incorrect = false)
+        {
+            if (incorrect)
+            {
+                Console.Clear();
+                Console.WriteLine("Incorrect input!" + Environment.NewLine, Color.Pink);
+            }
+            Console.WriteLine("Enter path to folder with logs...", Color.LightGreen);
+            var path = Console.ReadLine().Replace("\"", "");
+
+            return !string.IsNullOrEmpty(path) ? path : GetDialog(true);
         }
 
         #endregion
