@@ -26,7 +26,7 @@ namespace stealerchecker
     {
         #region FIELDS
 
-        private const string tag = "9.1";
+        private const string tag = "9.2";
         private const string caption = $"StealerChecker v{tag} by Temnij";
         private static readonly List<Log> files = new();
         private static readonly List<string> directories = new();
