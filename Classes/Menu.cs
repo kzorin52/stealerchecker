@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace stealerchecker
+namespace stealerchecker;
+
+public static partial class Program
 {
-    public static partial class Program
+    public struct Menu
     {
-        public struct Menu
-        {
-            public List<KeyValuePair<string, Action>> menu;
-            public string Name;
-        }
+        public List<KeyValuePair<string, Action>> menu;
+        public string Name;
     }
 }

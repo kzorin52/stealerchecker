@@ -1,13 +1,12 @@
 ﻿using System.Collections.Generic;
 
-namespace stealerchecker
+namespace stealerchecker;
+
+public static partial class Program
 {
-    public static partial class Program
+    internal struct Service
     {
-        internal struct Service
-        {
-            public string Name;
-            public IEnumerable<string> Services;
-        }
+        public string Name;
+        public IEnumerable<string> Services;
     }
 }
