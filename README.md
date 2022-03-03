@@ -19,7 +19,7 @@ Copyright Temnij 2021
   --version           Display version information.
 
 ```
-![Скриншот](https://i.imgur.com/Vha0B1u.png)
+![Скриншот](https://github.com/kzorin52/stealerchecker/raw/master/Image%205.png)
 
 # Базовые функции
 * `Get CCs` - Вытаскивает все карточки из логов
