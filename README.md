@@ -4,7 +4,7 @@
 Запуск:<br>
 ```
 StealerChecker
-Copyright Temnij 2021
+Copyright Temnij 2022
 
   Required option 'p, path' is missing.
 
