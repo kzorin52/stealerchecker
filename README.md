@@ -1,7 +1,22 @@
 # StealerChecker by Temnij
 Инструмент для работы с логами Echelon, RedLine, Racoon, DCRat
+
+# DONATES
+**BNB**: `0x4DbCc2F2d98fe511d58413E7eD1ABaEBD527a785`, `bnb1k7nrwupe963fqazvqed2dhl3hkyqaus4mamwrq` <br>
+**BTC**: `35RVYseJRa2sjv1MA8DthSHExZ9pjN1zGh` <br>
+**ETH**: `0x51f9dbf8da18daf52824a56097c028ae7083b10c` <br>
+**LTC**: `MMBdsMz3ragn5sHvExSkc7nJNK21a9yBmf` <br>
+**DASH**: `XxJuYop48d9fGWQZftoGRCAbv6WMWM4Rrb` <br>
+**RIPPLE**: tag `3048931473`, `rhn6BacbhRp7Q8McU7bbxTvLN4SHU5WGwn` <br>
+**USDC** & **USDT** (erc20): `0x51f9dbf8da18daf52824a56097c028ae7083b10c` <br>
+**DOGE**: `D9YafRhTirhnqwMXipN71bJW2A5JHczymw`<br> 
+**TRX** & **USDT** (trc20): `TPuQCPKFMDPAvgVcFwMa2oKjDQyAXLve5k` <br>
+**TON** (TON Coin): `UQDYm7tdhIf0mAaLT-AFbvAMBbSuY_KOOXrrDcJeIDUIFRdd` <br>
+**SOL**: `GYci8PNe1Pocrhf4z1DtjcgXpwdKu97m9nwfrjFXesDk` <br>
+
 <br>
 Запуск:<br>
+
 ```
 StealerChecker
 Copyright Temnij 2022
